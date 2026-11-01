@@ -67,6 +67,7 @@ class Product(models.Model):
         ],
     )
 
+    is_active = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
     moderation_blocked = models.BooleanField(default=False)
     moderation_reason = models.TextField(blank=True)

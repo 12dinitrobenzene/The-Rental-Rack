@@ -32,7 +32,7 @@ def catalogue(request):
         .order_by("size")
     )
     filter_form = CatalogueFilterForm(
-        request.GET or None,
+        request.GET,
         categories=categories,
         vendors=vendors,
         sizes=sizes,
@@ -278,10 +278,18 @@ def platform_vendor_action(request, vendor_id):
 def visible_products():
     return (
         Product.objects.filter(
+            # Employee publication settings
+            is_active=True,
+            is_archived=False,
+
+            # Platform moderation
+            moderation_blocked=False,
+
+            # Vendor eligibility
             vendor__approval_status=Vendor.ApprovalStatus.APPROVED,
             vendor__is_suspended=False,
-            is_archived=False,
-            moderation_blocked=False,
+
+            # At least one enabled size–colour option
             variants__is_active=True,
         )
         .select_related("vendor", "category")
