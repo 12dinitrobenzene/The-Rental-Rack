@@ -18,6 +18,16 @@ urlpatterns = [
     ),
     path("platform_admin/", views.platform_admin_home, name="platform_admin_home"),
     path(
+        "platform_admin/vendors/",
+        views.platform_vendor_list,
+        name="platform_vendor_list",
+    ),
+    path(
+        "platform_admin/vendors/<int:vendor_id>/action/",
+        views.platform_vendor_action,
+        name="platform_vendor_action",
+    ),
+    path(
         "customer/products/<int:product_id>/",
         views.product_detail,
         name="product_detail",

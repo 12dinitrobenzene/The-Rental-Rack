@@ -14,11 +14,14 @@
 </header>
 
 <section class="border rounded p-4">
-    <h2 class="h4">Platform management</h2>
+    <h2 class="h4">Vendor management</h2>
 
-    <p class="text-muted mb-0">
-        Vendor approvals, listing moderation and other platform
-        management features will be added in Sprint 7.
+    <p class="text-muted">
+        Approve vendors and manage vendor suspensions.
     </p>
+    <a href="{% url 'shop:platform_vendor_list' %}"
+       class="btn btn-dark">
+        Manage vendors
+    </a>
 </section>
 {% endblock %}
