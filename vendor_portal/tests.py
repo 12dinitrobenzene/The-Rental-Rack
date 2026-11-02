@@ -5,7 +5,8 @@ from django.urls import reverse
 
 from accounts.models import VendorEmployee
 from accounts.roles import VENDOR_EMPLOYEE_GROUP
-from shop.models import Category, Product, Vendor
+from shop.models import Category, Product, ProductVariant, Vendor
+from vendor_portal.forms import ProductForm
 
 
 class EmployeeHomeTests(TestCase):
@@ -82,4 +83,107 @@ class EmployeeHomeTests(TestCase):
         )
 
         self.assertEqual(own_response.status_code, 200)
+        self.assertEqual(other_response.status_code, 404)
+
+    def test_inventory_shows_product_details_stock_and_status(self):
+        product = self.create_product(
+            self.vendor,
+            "Published product",
+            is_active=True,
+            is_published=True,
+        )
+        ProductVariant.objects.create(
+            product=product,
+            sku="inventory-product-m-green",
+            size="M",
+            colour="Green",
+            total_quantity=4,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertContains(response, "Category")
+        self.assertContains(response, "Price")
+        self.assertContains(response, "Stock")
+        self.assertContains(response, "4")
+        self.assertContains(response, "Active")
+
+    def test_employee_can_create_a_product_for_their_own_vendor(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vendor_portal:product_create"),
+            {
+                "name": "New vendor product",
+                "category": self.category.pk,
+                "brand": "Vendor brand",
+                "description": "A newly listed product.",
+                "daily_rate": "15.00",
+                "is_published": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("vendor_portal:home"))
+        product = Product.objects.get(name="New vendor product")
+        self.assertEqual(product.vendor, self.vendor)
+        self.assertTrue(product.is_active)
+        self.assertTrue(product.is_published)
+
+    def test_product_form_excludes_vendor_and_moderation_fields(self):
+        self.assertEqual(
+            set(ProductForm.Meta.fields),
+            {
+                "name",
+                "category",
+                "brand",
+                "description",
+                "daily_rate",
+                "is_published",
+            },
+        )
+
+    def test_employee_can_edit_only_their_own_product(self):
+        own_product = self.create_product(self.vendor, "Original name")
+        other_product = self.create_product(self.other_vendor, "Other product")
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vendor_portal:product_edit", args=[own_product.pk]),
+            {
+                "name": "Updated name",
+                "category": self.category.pk,
+                "brand": own_product.brand,
+                "description": own_product.description,
+                "daily_rate": "20.00",
+            },
+        )
+        other_response = self.client.get(
+            reverse("vendor_portal:product_edit", args=[other_product.pk])
+        )
+
+        self.assertRedirects(response, reverse("vendor_portal:home"))
+        own_product.refresh_from_db()
+        self.assertEqual(own_product.name, "Updated name")
+        self.assertEqual(other_response.status_code, 404)
+
+    def test_employee_can_archive_only_their_own_product(self):
+        own_product = self.create_product(self.vendor, "Product to archive")
+        other_product = self.create_product(self.other_vendor, "Other product")
+        self.client.force_login(self.user)
+
+        get_response = self.client.get(
+            reverse("vendor_portal:product_archive", args=[own_product.pk])
+        )
+        response = self.client.post(
+            reverse("vendor_portal:product_archive", args=[own_product.pk])
+        )
+        other_response = self.client.post(
+            reverse("vendor_portal:product_archive", args=[other_product.pk])
+        )
+
+        self.assertEqual(get_response.status_code, 405)
+        self.assertRedirects(response, reverse("vendor_portal:home"))
+        own_product.refresh_from_db()
+        self.assertTrue(own_product.is_archived)
         self.assertEqual(other_response.status_code, 404)

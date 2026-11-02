@@ -1,0 +1,33 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Add employee | {{ vendor.name }}{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'accounts:vendor_team' %}">Back to team</a>
+
+<div class="row mt-4">
+    <div class="col-lg-8 col-xl-7">
+        <p class="text-muted small text-uppercase mb-1">{{ vendor.name }}</p>
+        <h1>Add employee</h1>
+        <p class="text-muted">This account will be added to {{ vendor.name }} automatically.</p>
+
+        <form method="post" class="card card-body shadow-sm mt-4" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="row g-3">
+                {% for field in form %}
+                    <div class="{% if field.name == 'first_name' or field.name == 'last_name' %}col-md-6{% else %}col-12{% endif %}">
+                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<p class="text-danger small mb-0 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex gap-2 mt-4">
+                <button class="btn btn-dark" type="submit">Create employee</button>
+                <a class="btn btn-outline-secondary" href="{% url 'accounts:vendor_team' %}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

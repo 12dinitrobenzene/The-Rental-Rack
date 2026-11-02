@@ -7,6 +7,7 @@ def visible_products():
     return (
         Product.objects.filter(
             is_active=True,
+            is_published=True,
             is_archived=False,
             moderation_blocked=False,
             vendor__approval_status=Vendor.ApprovalStatus.APPROVED,

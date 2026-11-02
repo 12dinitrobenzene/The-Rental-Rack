@@ -68,6 +68,8 @@ class Product(models.Model):
     )
 
     is_active = models.BooleanField(default=False)
+    # Controlled by the vendor employee. Platform moderation must not alter it.
+    is_published = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
     moderation_blocked = models.BooleanField(default=False)
     moderation_reason = models.TextField(blank=True)

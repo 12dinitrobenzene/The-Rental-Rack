@@ -3,40 +3,71 @@
 {% block title %}{{ vendor.name }} workspace{% endblock %}
 
 {% block content %}
-<header class="mb-4">
-    <p class="text-muted small text-uppercase">Vendor workspace</p>
-    <h1>{{ vendor.name }} workspace</h1>
-    <p>Welcome, {{ request.user.username }}.</p>
+<header class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+    <div>
+        <p class="text-muted small text-uppercase mb-1">Vendor workspace</p>
+        <h1 class="mb-1">{{ vendor.name }} inventory</h1>
+        <p class="text-muted mb-0">Manage your company's clothing listings.</p>
+    </div>
+    <a class="btn btn-dark" href="{% url 'vendor_portal:product_create' %}">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i> Add product
+    </a>
+    {% if employee.is_vendor_admin %}
+        <a class="btn btn-outline-dark" href="{% url 'accounts:vendor_team' %}">
+            Manage team
+        </a>
+    {% endif %}
 </header>
 
 <section aria-labelledby="vendor-products-heading">
-    <h2 id="vendor-products-heading" class="h4 mb-3">
-        Your company's products
-    </h2>
-
-    <div class="list-group">
+    <h2 id="vendor-products-heading" class="visually-hidden">Your products</h2>
+    <div class="table-responsive border rounded">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
         {% for product in products %}
-            <a href="{% url 'vendor_portal:product_detail' product.pk %}"
-               class="list-group-item list-group-item-action">
-
-                <div class="d-flex justify-content-between gap-3">
-                    <span>{{ product.name }}</span>
-                    <span>SGD {{ product.daily_rate }}/day</span>
-                </div>
-
-                {% if product.is_archived %}
-                    <span class="badge text-bg-secondary">Archived</span>
-                {% endif %}
-
-                {% if product.moderation_blocked %}
-                    <span class="badge text-bg-danger">Blocked</span>
-                {% endif %}
-            </a>
+                <tr>
+                    <td>
+                        <a class="fw-semibold link-dark"
+                           href="{% url 'vendor_portal:product_detail' product.pk %}">
+                            {{ product.name }}
+                        </a>
+                        <div class="small text-muted">{{ product.brand }}</div>
+                    </td>
+                    <td>{{ product.category.name }}</td>
+                    <td>SGD {{ product.daily_rate }}/day</td>
+                    <td>{{ product.total_stock }}</td>
+                    <td><span class="badge text-bg-{{ product.status_style }}">{{ product.status_label }}</span></td>
+                    <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-outline-dark"
+                           href="{% url 'vendor_portal:product_edit' product.pk %}">Edit</a>
+                        {% if not product.is_archived %}
+                            <form class="d-inline" method="post"
+                                  action="{% url 'vendor_portal:product_archive' product.pk %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-secondary" type="submit">Archive</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
         {% empty %}
-            <p class="text-muted">
-                Your company has no products yet.
-            </p>
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-5">
+                        No products yet. Add your first listing to get started.
+                    </td>
+                </tr>
         {% endfor %}
+            </tbody>
+        </table>
     </div>
 </section>
 {% endblock %}

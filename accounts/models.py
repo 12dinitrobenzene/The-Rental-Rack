@@ -26,6 +26,7 @@ class VendorEmployee(models.Model):
         on_delete=models.PROTECT,
         related_name="employees",
     )
+    is_vendor_admin = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.username} - {self.vendor.name}"
