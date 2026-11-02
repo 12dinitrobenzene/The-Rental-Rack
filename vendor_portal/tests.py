@@ -129,6 +129,43 @@ class EmployeeHomeTests(TestCase):
         self.assertContains(response, "4")
         self.assertContains(response, "Active")
 
+    def test_inventory_uses_clear_status_labels(self):
+        active_product = self.create_product(
+            self.vendor,
+            "Active product",
+            is_active=True,
+            is_published=True,
+        )
+        archived_product = self.create_product(
+            self.vendor,
+            "Archived product",
+            is_archived=True,
+        )
+        blocked_product = self.create_product(
+            self.vendor,
+            "Blocked product",
+            moderation_blocked=True,
+        )
+        draft_product = self.create_product(self.vendor, "Draft product")
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertContains(response, active_product.name)
+        self.assertContains(response, archived_product.name)
+        self.assertContains(response, blocked_product.name)
+        self.assertContains(response, draft_product.name)
+        self.assertContains(response, "Active")
+        self.assertContains(response, "Archived")
+        self.assertContains(response, "Blocked")
+        self.assertContains(response, "Draft")
+
+        self.vendor.is_suspended = True
+        self.vendor.save(update_fields=["is_suspended"])
+        suspended_response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertContains(suspended_response, "Vendor Suspended", count=4)
+
     def test_employee_can_create_a_product_for_their_own_vendor(self):
         self.client.force_login(self.user)
 
