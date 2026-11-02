@@ -14,11 +14,11 @@
         {% elif account_role == 'Customer' %}
             {% if customer_navigation %}
                 <a class="account-menu-item"
-                   href="{% url 'shop:customer_account' %}">
+                   href="{% url 'customer:account' %}">
                     My account &amp; rentals
                 </a>
             {% endif %}
-            <a class="account-menu-item" href="{% url 'shop:catalogue' %}">
+            <a class="account-menu-item" href="{% url 'customer:home' %}">
                 Home
             </a>
             <a class="account-menu-item" href="{% url 'accounts:profile' %}">
@@ -33,7 +33,7 @@
         {% else %}
             {% if account_role == 'Platform Admin' %}
                 <a class="account-menu-item"
-                   href="{% url 'shop:platform_admin_home' %}">
+                   href="{% url 'staff_portal:home' %}">
                     Platform Workspace
                 </a>
             {% endif %}

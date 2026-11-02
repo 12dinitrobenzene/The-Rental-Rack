@@ -1,0 +1,42 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}{{ vendor.name }} workspace{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <p class="text-muted small text-uppercase">Vendor workspace</p>
+    <h1>{{ vendor.name }} workspace</h1>
+    <p>Welcome, {{ request.user.username }}.</p>
+</header>
+
+<section aria-labelledby="vendor-products-heading">
+    <h2 id="vendor-products-heading" class="h4 mb-3">
+        Your company's products
+    </h2>
+
+    <div class="list-group">
+        {% for product in products %}
+            <a href="{% url 'vendor_portal:product_detail' product.pk %}"
+               class="list-group-item list-group-item-action">
+
+                <div class="d-flex justify-content-between gap-3">
+                    <span>{{ product.name }}</span>
+                    <span>SGD {{ product.daily_rate }}/day</span>
+                </div>
+
+                {% if product.is_archived %}
+                    <span class="badge text-bg-secondary">Archived</span>
+                {% endif %}
+
+                {% if product.moderation_blocked %}
+                    <span class="badge text-bg-danger">Blocked</span>
+                {% endif %}
+            </a>
+        {% empty %}
+            <p class="text-muted">
+                Your company has no products yet.
+            </p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

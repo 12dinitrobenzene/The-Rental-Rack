@@ -1,0 +1,14 @@
+{% extends "layouts/base.html" %}
+
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container staff-nav-layout">
+        <a class="navbar-brand" href="/">Store Staff</a>
+        {% include "accounts/components/account_menu.html" with menu_theme="light" %}
+        {% block staff_navigation %}{% endblock %}
+    </div>
+</nav>
+<main class="container py-4">
+    {% block content %}{% endblock %}
+</main>
+{% endblock %}

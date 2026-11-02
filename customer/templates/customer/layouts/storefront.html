@@ -1,0 +1,15 @@
+{% extends "layouts/base.html" %}
+
+{% block body %}
+    {% include "customer/components/navbar.html" %}
+
+    <main class="container py-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="border-top py-3">
+        <div class="container text-muted">
+            {% block footer %}Clothing Store{% endblock %}
+        </div>
+    </footer>
+{% endblock %}

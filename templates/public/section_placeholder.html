@@ -1,0 +1,12 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ title }} | Clothing Store{% endblock %}
+
+{% block body %}
+<main class="container py-5">
+    <p class="landing-eyebrow">CLOTHING STORE</p>
+    <h1>{{ title }}</h1>
+    <p class="lead">{{ message }}</p>
+    <a href="{% url 'landing' %}">Return to home</a>
+</main>
+{% endblock %}

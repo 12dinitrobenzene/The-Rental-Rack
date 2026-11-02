@@ -1,4 +1,4 @@
-{% extends "shop/layouts/base.html" %}
+{% extends "layouts/base.html" %}
 
 {% block title %}My profile | Clothing Store{% endblock %}
 
@@ -37,7 +37,7 @@
 
                 <div class="d-flex gap-3 align-items-center mt-4">
                     <button type="submit" class="btn btn-dark">Save changes</button>
-                    <a href="{% url 'shop:landing' %}">Back to home</a>
+                    <a href="{% url 'landing' %}">Back to home</a>
                 </div>
             </form>
         </section>

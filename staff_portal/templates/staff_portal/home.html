@@ -1,0 +1,27 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Platform workspace | Clothing Store{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <p class="text-muted small text-uppercase">
+        Platform administration
+    </p>
+
+    <h1>Platform workspace</h1>
+
+    <p>Welcome, {{ request.user.username }}.</p>
+</header>
+
+<section class="border rounded p-4">
+    <h2 class="h4">Vendor management</h2>
+
+    <p class="text-muted">
+        Approve vendors and manage vendor suspensions.
+    </p>
+    <a href="{% url 'staff_portal:vendor_list' %}"
+       class="btn btn-dark">
+        Manage vendors
+    </a>
+</section>
+{% endblock %}
