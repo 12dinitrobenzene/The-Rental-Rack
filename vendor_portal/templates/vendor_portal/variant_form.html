@@ -1,0 +1,55 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}{{ page_title }} | {{ product.name }}{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'vendor_portal:product_detail' product.pk %}">Back to product</a>
+
+<div class="row mt-4">
+    <div class="col-lg-8 col-xl-7">
+        <p class="text-muted small text-uppercase mb-1">{{ vendor.name }} · {{ product.name }}</p>
+        <h1>{{ page_title }}</h1>
+        <p class="text-muted">Record one size and colour combination for this product.</p>
+
+        <form method="post" class="card card-body shadow-sm mt-4" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label" for="{{ form.sku.id_for_label }}">{{ form.sku.label }}</label>
+                    {{ form.sku }}
+                    {% for error in form.sku.errors %}<p class="text-danger small mb-0 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.size.id_for_label }}">{{ form.size.label }}</label>
+                    {{ form.size }}
+                    {% for error in form.size.errors %}<p class="text-danger small mb-0 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.colour.id_for_label }}">{{ form.colour.label }}</label>
+                    {{ form.colour }}
+                    {% for error in form.colour.errors %}<p class="text-danger small mb-0 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.colour_hex.id_for_label }}">{{ form.colour_hex.label }}</label>
+                    {{ form.colour_hex }}
+                    {% for error in form.colour_hex.errors %}<p class="text-danger small mb-0 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ form.total_quantity.id_for_label }}">{{ form.total_quantity.label }}</label>
+                    {{ form.total_quantity }}
+                    {% for error in form.total_quantity.errors %}<p class="text-danger small mb-0 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+            </div>
+            <div class="form-check my-4">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-dark" type="submit">Save variant</button>
+                <a class="btn btn-outline-secondary" href="{% url 'vendor_portal:product_detail' product.pk %}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
