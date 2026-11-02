@@ -1,0 +1,43 @@
+<article class="card product-card h-100">
+    {% with image=product.images.all|first %}
+        {% if image %}
+            <a href="{% url 'customer:product_detail' product.id %}">
+                <img
+                    src="{{ image.image.url }}"
+                    class="card-img-top product-card-image"
+                    alt="{{ image.alt_text|default:product.name }}"
+                >
+            </a>
+        {% else %}
+            <div class="product-image-placeholder">
+                No image available
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="card-body px-0">
+        <p class="product-card-vendor mb-1">
+            {{ product.vendor.name }}
+        </p>
+
+        <h2 class="card-title h5">
+            <a
+                href="{% url 'customer:product_detail' product.id %}"
+                class="text-decoration-none text-dark"
+            >
+                {{ product.name }}
+            </a>
+        </h2>
+
+        <p class="card-text">
+            SGD {{ product.daily_rate }}/day
+        </p>
+
+        <a
+            href="{% url 'customer:product_detail' product.id %}"
+            class="btn btn-outline-dark"
+        >
+            View details
+        </a>
+    </div>
+</article>

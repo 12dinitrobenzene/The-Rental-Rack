@@ -15,7 +15,7 @@ from .roles import CUSTOMER_GROUP, destination_for_user, user_has_role
 def register(request):
     if request.user.is_authenticated:
         destination = destination_for_user(request.user)
-        return redirect(destination or "shop:catalogue")
+        return redirect(destination or "customer:home")
 
     if request.method == "POST":
         form = CustomerRegistrationForm(request.POST)
@@ -31,7 +31,7 @@ def register(request):
                 request,
                 "Your customer account has been created. Sign in to continue.",
             )
-            return redirect("shop:landing")
+            return redirect("landing")
     else:
         form = CustomerRegistrationForm()
 
@@ -41,7 +41,7 @@ def register(request):
 def login_view(request):
     if request.user.is_authenticated:
         destination = destination_for_user(request.user)
-        return redirect(destination or "shop:landing")
+        return redirect(destination or "landing")
 
     if request.method == "POST":
         form = AuthenticationForm(request, data=request.POST)
@@ -68,14 +68,14 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     messages.info(request, "You have been signed out.")
-    return redirect("shop:landing")
+    return redirect("landing")
 
 
 @login_required(login_url="accounts:login")
 def profile(request):
     if not user_has_role(request.user, CUSTOMER_GROUP):
         messages.error(request, "Only customer accounts can edit a customer profile.")
-        return redirect(destination_for_user(request.user) or "shop:landing")
+        return redirect(destination_for_user(request.user) or "landing")
 
     customer_profile, _ = CustomerProfile.objects.get_or_create(user=request.user)
 

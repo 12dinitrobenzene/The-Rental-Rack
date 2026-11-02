@@ -32,7 +32,7 @@ class CustomerRegistrationTests(TestCase):
         )
 
         user = User.objects.get(username="elgin_demo")
-        self.assertRedirects(response, reverse("shop:landing"))
+        self.assertRedirects(response, reverse("landing"))
         self.assertTrue(user.check_password("A-safe-password-2026!"))
         self.assertTrue(user.groups.filter(name=CUSTOMER_GROUP).exists())
         self.assertFalse(user.groups.filter(name="Platform Admin").exists())
@@ -70,4 +70,4 @@ class CustomerRegistrationTests(TestCase):
 
         response = self.client.get(self.url)
 
-        self.assertRedirects(response, reverse("shop:catalogue"))
+        self.assertRedirects(response, reverse("customer:home"))

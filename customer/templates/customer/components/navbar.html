@@ -1,0 +1,74 @@
+<nav class="navbar navbar-expand-lg customer-navbar"
+     aria-label="Customer navigation">
+
+    <div class="container customer-nav-layout">
+
+        <a class="navbar-brand customer-brand"
+           href="{% url 'customer:home' %}">
+            Clothing Store
+        </a>
+
+        <div class="collapse navbar-collapse customer-menu"
+             id="customerMenu">
+
+            <ul class="navbar-nav gap-lg-3">
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="{% url 'customer:about' %}">
+                        About us
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="{% url 'customer:guide' %}">
+                        How it works
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="{% url 'customer:vendor_info' %}">
+                        Vendor sign up
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="customer-nav-actions">
+            <a class="customer-icon-link"
+               href="{% url 'customer:catalogue' %}"
+               aria-label="Search clothing"
+               title="Search clothing">
+                <i class="bi bi-search" aria-hidden="true"></i>
+            </a>
+
+            <a class="customer-icon-link"
+               href="{% url 'customer:cart' %}"
+               aria-label="Your cart"
+               title="Your cart">
+                <i class="bi bi-cart" aria-hidden="true"></i>
+            </a>
+
+            <a class="customer-icon-link"
+               href="{% url 'customer:wishlist' %}"
+               aria-label="Your wishlist"
+               title="Your wishlist">
+                <i class="bi bi-heart" aria-hidden="true"></i>
+            </a>
+
+            {% include "accounts/components/account_menu.html" with customer_navigation=True %}
+        </div>
+
+        <button class="navbar-toggler customer-menu-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#customerMenu"
+                aria-controls="customerMenu"
+                aria-expanded="false"
+                aria-label="Toggle customer navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+    </div>
+</nav>

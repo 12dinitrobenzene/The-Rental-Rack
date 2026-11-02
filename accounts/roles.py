@@ -10,9 +10,9 @@ APPLICATION_ROLE_GROUPS = (
 
 
 ROLE_DESTINATIONS = {
-    CUSTOMER_GROUP: "shop:catalogue",
-    VENDOR_EMPLOYEE_GROUP: "shop:employee_home",
-    PLATFORM_ADMIN_GROUP: "shop:platform_admin_home",
+    CUSTOMER_GROUP: "customer:home",
+    VENDOR_EMPLOYEE_GROUP: "vendor_portal:home",
+    PLATFORM_ADMIN_GROUP: "staff_portal:home",
 }
 
 

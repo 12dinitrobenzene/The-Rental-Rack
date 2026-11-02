@@ -1,0 +1,214 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}{{ product.name }} | Clothing Store{% endblock %}
+
+{% block content %}
+<nav aria-label="Breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{% url 'customer:home' %}">Catalogue</a>
+        </li>
+        <li class="breadcrumb-item">
+            {{ product.category.name }}
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+            {{ product.name }}
+        </li>
+    </ol>
+</nav>
+
+<article class="product-detail">
+    <div class="row g-5">
+        <div class="col-lg-7">
+            <div
+                id="productGallery"
+                class="carousel slide"
+                aria-label="{{ product.name }} images"
+            >
+                <div class="carousel-inner">
+                    {% for image in product.images.all %}
+                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                            <img
+                                src="{{ image.image.url }}"
+                                class="product-main-image"
+                                alt="{{ image.alt_text|default:product.name }}"
+                            >
+                        </div>
+                    {% empty %}
+                        <div class="product-main-placeholder">
+                            No product image available
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if product.images.count > 1 %}
+                    <button
+                        class="carousel-control-prev"
+                        type="button"
+                        data-bs-target="#productGallery"
+                        data-bs-slide="prev"
+                    >
+                        <span class="carousel-control-prev-icon"></span>
+                        <span class="visually-hidden">Previous image</span>
+                    </button>
+
+                    <button
+                        class="carousel-control-next"
+                        type="button"
+                        data-bs-target="#productGallery"
+                        data-bs-slide="next"
+                    >
+                        <span class="carousel-control-next-icon"></span>
+                        <span class="visually-hidden">Next image</span>
+                    </button>
+                {% endif %}
+            </div>
+
+            {% if product.images.count > 1 %}
+                <div class="product-thumbnails mt-3">
+                    {% for image in product.images.all %}
+                        <button
+                            type="button"
+                            class="product-thumbnail {% if forloop.first %}active{% endif %}"
+                            data-bs-target="#productGallery"
+                            data-bs-slide-to="{{ forloop.counter0 }}"
+                            aria-label="Show image {{ forloop.counter }}"
+                        >
+                            <img
+                                src="{{ image.image.url }}"
+                                alt=""
+                            >
+                        </button>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-5">
+            <p class="product-brand mb-2">{{ product.brand }}</p>
+
+            <h1 class="display-6">{{ product.name }}</h1>
+
+            <p class="text-muted">
+                Rented by {{ product.vendor.name }}
+            </p>
+
+            <p class="product-price">
+                SGD {{ product.daily_rate }}
+                <span>per day</span>
+            </p>
+
+            <p class="product-description">
+                {{ product.description }}
+            </p>
+
+            <hr>
+
+            <section
+                class="variant-picker"
+                data-variant-picker
+                data-default-colour="{{ default_colour }}"
+            >
+                {% if product.active_variants %}
+                    <fieldset class="mb-4">
+                        <legend class="variant-heading">
+                            Colour:
+                            <span data-selected-colour>
+                                {{ default_colour }}
+                            </span>
+                        </legend>
+
+                        <div class="colour-options">
+                            {% for colour in available_colours %}
+                                <button
+                                    type="button"
+                                    class="colour-swatch {% if colour.name == default_colour %}is-selected{% endif %}"
+                                    style="--swatch-colour: {{ colour.hex }};"
+                                    data-colour="{{ colour.name }}"
+                                    aria-label="Select {{ colour.name }}"
+                                    aria-pressed="{% if colour.name == default_colour %}true{% else %}false{% endif %}"
+                                >
+                                    <span class="visually-hidden">
+                                        {{ colour.name }}
+                                    </span>
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="mb-4">
+                        <legend class="variant-heading">
+                            Size:
+                            <span data-selected-size></span>
+                        </legend>
+
+                        <div class="size-options">
+                            {% for variant in product.active_variants %}
+                                <button
+                                    type="button"
+                                    class="size-option"
+                                    data-size-option
+                                    data-colour="{{ variant.colour }}"
+                                    data-size="{{ variant.size }}"
+                                    data-stock="{{ variant.total_quantity }}"
+                                    data-variant-id="{{ variant.id }}"
+                                    aria-pressed="false"
+                                    {% if variant.colour != default_colour %}hidden{% endif %}
+                                >
+                                    {{ variant.size }}
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+
+                    <p class="stock-message" data-stock-message>
+                        Choose a size
+                    </p>
+
+                    <input
+                        type="hidden"
+                        name="variant_id"
+                        data-variant-input
+                    >
+                {% else %}
+                    <p class="text-muted">
+                        This product is currently unavailable.
+                    </p>
+                {% endif %}
+            </section>
+
+            <hr>
+
+            <dl class="row product-metadata">
+                <dt class="col-4">Category</dt>
+                <dd class="col-8">{{ product.category.name }}</dd>
+
+                <dt class="col-4">Vendor</dt>
+                <dd class="col-8">{{ product.vendor.name }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <section class="product-information">
+        <h2>Product description</h2>
+        <p>{{ product.description }}</p>
+    </section>
+</article>
+
+{% if related_products %}
+<section class="related-products">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>You may also like</h2>
+        <a href="{% url 'customer:home' %}">View all products</a>
+    </div>
+
+    <div class="row g-4">
+        {% for related_product in related_products %}
+            <div class="col-sm-6 col-lg-3">
+                {% include "customer/components/product_card.html" with product=related_product only %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}
