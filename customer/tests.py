@@ -48,6 +48,7 @@ class CatalogueFilterTests(TestCase):
             brand="Test brand",
             daily_rate=daily_rate,
             is_active=is_active,
+            is_published=True,
         )
         ProductVariant.objects.create(
             product=product,
@@ -145,6 +146,7 @@ class PublicProductVisibilityTests(TestCase):
             brand="Test",
             daily_rate="12.00",
             is_active=True,
+            is_published=True,
         )
 
         ProductVariant.objects.create(
@@ -183,6 +185,11 @@ class PublicProductVisibilityTests(TestCase):
     def test_inactive_product_is_hidden(self):
         self.product.is_active = False
         self.product.save()
+        self.assert_hidden_from_customers()
+
+    def test_unpublished_product_is_hidden(self):
+        self.product.is_published = False
+        self.product.save(update_fields=["is_published"])
         self.assert_hidden_from_customers()
 
     def test_archived_product_is_hidden(self):
