@@ -3,13 +3,15 @@
 {% block title %}{{ product.name }} | Vendor workspace{% endblock %}
 
 {% block content %}
-<a href="{% url 'vendor_portal:home' %}">
-    Back to workspace
-</a>
+<a class="link-secondary" href="{% url 'vendor_portal:home' %}">Back to inventory</a>
 
-<header class="mt-4">
-    <p class="text-muted">{{ vendor.name }}</p>
-    <h1>{{ product.name }}</h1>
+<header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mt-4">
+    <div>
+        <p class="text-muted mb-1">{{ vendor.name }}</p>
+        <h1>{{ product.name }}</h1>
+    </div>
+    <a class="btn btn-outline-dark"
+       href="{% url 'vendor_portal:product_edit' product.pk %}">Edit product</a>
 </header>
 
 <p>SGD {{ product.daily_rate }}/day</p>

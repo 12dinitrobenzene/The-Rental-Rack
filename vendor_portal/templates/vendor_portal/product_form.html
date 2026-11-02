@@ -1,0 +1,57 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}{{ page_title }} | Vendor workspace{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'vendor_portal:home' %}">Back to inventory</a>
+
+<div class="row mt-4">
+    <div class="col-lg-8 col-xl-7">
+        <p class="text-muted small text-uppercase mb-1">{{ vendor.name }}</p>
+        <h1>{{ page_title }}</h1>
+        <p class="text-muted">Enter the listing details below.</p>
+
+        <form method="post" class="card card-body shadow-sm mt-4">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+
+            <div class="mb-3">
+                <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name }}
+                <div class="text-danger small">{{ form.name.errors }}</div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+                    {{ form.category }}
+                    <div class="text-danger small">{{ form.category.errors }}</div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label" for="{{ form.brand.id_for_label }}">{{ form.brand.label }}</label>
+                    {{ form.brand }}
+                    <div class="text-danger small">{{ form.brand.errors }}</div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                {{ form.description }}
+                <div class="text-danger small">{{ form.description.errors }}</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="{{ form.daily_rate.id_for_label }}">{{ form.daily_rate.label }}</label>
+                {{ form.daily_rate }}
+                <div class="text-danger small">{{ form.daily_rate.errors }}</div>
+            </div>
+            <div class="form-check mb-4">
+                {{ form.is_published }}
+                <label class="form-check-label" for="{{ form.is_published.id_for_label }}">{{ form.is_published.label }}</label>
+                <div class="text-danger small">{{ form.is_published.errors }}</div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-dark" type="submit">Save product</button>
+                <a class="btn btn-outline-secondary" href="{% url 'vendor_portal:home' %}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

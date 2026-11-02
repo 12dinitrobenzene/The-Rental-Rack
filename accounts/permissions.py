@@ -26,6 +26,15 @@ def get_employee_for_user(user):
         )
 
 
+def get_vendor_admin_for_user(user):
+    employee = get_employee_for_user(user)
+
+    if not employee.is_vendor_admin:
+        raise PermissionDenied("Vendor manager access is required.")
+
+    return employee
+
+
 def require_platform_admin(user):
     if (
         not user.is_authenticated

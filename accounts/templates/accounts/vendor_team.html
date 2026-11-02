@@ -1,0 +1,43 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Team | {{ vendor.name }}{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'vendor_portal:home' %}">Back to inventory</a>
+
+<header class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-4 mb-4">
+    <div>
+        <p class="text-muted small text-uppercase mb-1">Vendor workspace</p>
+        <h1 class="mb-1">{{ vendor.name }} team</h1>
+        <p class="text-muted mb-0">Manage employee access for your company.</p>
+    </div>
+    <a class="btn btn-dark" href="{% url 'accounts:vendor_team_add_employee' %}">
+        <i class="bi bi-person-plus" aria-hidden="true"></i> Add employee
+    </a>
+</header>
+
+<div class="table-responsive border rounded">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th scope="col">Employee</th>
+                <th scope="col">Email</th>
+                <th scope="col">Access</th>
+                <th scope="col">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+                <tr>
+                    <td>{{ employee.user.get_full_name|default:employee.user.username }}</td>
+                    <td>{{ employee.user.email }}</td>
+                    <td>{% if employee.is_vendor_admin %}Company manager{% else %}Employee{% endif %}</td>
+                    <td>{% if employee.user.is_active %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-5">No employees have been added yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

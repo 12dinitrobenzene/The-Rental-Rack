@@ -31,6 +31,12 @@
                 </button>
             </form>
         {% else %}
+            {% if account_role == 'Vendor Employee' %}
+                <a class="account-menu-item"
+                   href="{% url 'vendor_portal:home' %}">
+                    Vendor Workspace
+                </a>
+            {% endif %}
             {% if account_role == 'Platform Admin' %}
                 <a class="account-menu-item"
                    href="{% url 'staff_portal:home' %}">
