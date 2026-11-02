@@ -11,12 +11,12 @@ from .forms import ProductForm, ProductImageForm, ProductVariantForm
 
 
 def inventory_status(product):
+    if product.vendor.is_suspended:
+        return "Vendor Suspended", "warning"
     if product.is_archived:
         return "Archived", "secondary"
     if product.moderation_blocked:
         return "Blocked", "danger"
-    if product.vendor.is_suspended:
-        return "Vendor suspended", "warning"
     if product.is_active and product.is_published:
         return "Active", "success"
     return "Draft", "secondary"
