@@ -31,9 +31,17 @@
                 </button>
             </form>
         {% else %}
+            {% if account_role == 'Platform Admin' %}
+                <a class="account-menu-item"
+                   href="{% url 'shop:platform_admin_home' %}">
+                    Platform Workspace
+                </a>
+            {% endif %}
+
             <form method="post" action="{% url 'accounts:logout' %}">
                 {% csrf_token %}
-                <button type="submit" class="account-menu-item account-menu-button">
+                <button type="submit"
+                        class="account-menu-item account-menu-button">
                     Sign out
                 </button>
             </form>
