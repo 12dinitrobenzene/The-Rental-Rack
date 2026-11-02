@@ -23,4 +23,24 @@ urlpatterns = [
         views.employee_product_archive,
         name="product_archive",
     ),
+    path(
+        "products/<int:product_id>/variants/add/",
+        views.employee_variant_create,
+        name="variant_create",
+    ),
+    path(
+        "products/<int:product_id>/variants/<int:variant_id>/edit/",
+        views.employee_variant_edit,
+        name="variant_edit",
+    ),
+    path(
+        "products/<int:product_id>/images/add/",
+        views.employee_image_create,
+        name="image_create",
+    ),
+    path(
+        "products/<int:product_id>/images/<int:image_id>/edit/",
+        views.employee_image_edit,
+        name="image_edit",
+    ),
 ]

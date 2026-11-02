@@ -1,16 +1,25 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from tempfile import TemporaryDirectory
 
 from accounts.models import VendorEmployee
 from accounts.roles import VENDOR_EMPLOYEE_GROUP
-from shop.models import Category, Product, ProductVariant, Vendor
-from vendor_portal.forms import ProductForm
+from shop.models import Category, Product, ProductImage, ProductVariant, Vendor
+from vendor_portal.forms import ProductForm, ProductImageForm, ProductVariantForm
 
 
 class EmployeeHomeTests(TestCase):
     def setUp(self):
+        self.media_directory = TemporaryDirectory()
+        self.media_settings = override_settings(
+            MEDIA_ROOT=self.media_directory.name
+        )
+        self.media_settings.enable()
+        self.addCleanup(self.media_settings.disable)
+        self.addCleanup(self.media_directory.cleanup)
         self.employee_group, _ = Group.objects.get_or_create(
             name=VENDOR_EMPLOYEE_GROUP
         )
@@ -39,6 +48,17 @@ class EmployeeHomeTests(TestCase):
             brand="Test brand",
             daily_rate="12.00",
             **extra_fields,
+        )
+
+    def image_file(self, name="product.gif"):
+        return SimpleUploadedFile(
+            name,
+            (
+                b"GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00"
+                b"\xff\xff\xff!\xf9\x04\x01\n\x00\x01\x00,\x00\x00"
+                b"\x00\x00\x01\x00\x01\x00\x00\x02\x02L\x01\x00;"
+            ),
+            content_type="image/gif",
         )
 
     def test_anonymous_user_is_redirected_to_login(self):
@@ -187,3 +207,114 @@ class EmployeeHomeTests(TestCase):
         own_product.refresh_from_db()
         self.assertTrue(own_product.is_archived)
         self.assertEqual(other_response.status_code, 404)
+
+    def test_employee_can_create_and_edit_only_their_own_variant(self):
+        product = self.create_product(self.vendor, "Variant product")
+        other_product = self.create_product(self.other_vendor, "Other product")
+        other_variant = ProductVariant.objects.create(
+            product=other_product,
+            sku="other-variant",
+            size="M",
+            colour="Blue",
+            total_quantity=1,
+        )
+        self.client.force_login(self.user)
+
+        create_response = self.client.post(
+            reverse("vendor_portal:variant_create", args=[product.pk]),
+            {
+                "sku": "variant-product-s-green",
+                "size": "S",
+                "colour": "Green",
+                "colour_hex": "#00AA00",
+                "total_quantity": 3,
+                "is_active": "on",
+            },
+        )
+        variant = ProductVariant.objects.get(sku="variant-product-s-green")
+        edit_response = self.client.post(
+            reverse(
+                "vendor_portal:variant_edit",
+                args=[product.pk, variant.pk],
+            ),
+            {
+                "sku": variant.sku,
+                "size": "S",
+                "colour": "Green",
+                "colour_hex": "#00AA00",
+                "total_quantity": 5,
+                "is_active": "on",
+            },
+        )
+        other_response = self.client.get(
+            reverse(
+                "vendor_portal:variant_edit",
+                args=[other_product.pk, other_variant.pk],
+            )
+        )
+
+        self.assertRedirects(
+            create_response,
+            reverse("vendor_portal:product_detail", args=[product.pk]),
+        )
+        self.assertEqual(variant.product, product)
+        self.assertRedirects(
+            edit_response,
+            reverse("vendor_portal:product_detail", args=[product.pk]),
+        )
+        variant.refresh_from_db()
+        self.assertEqual(variant.total_quantity, 5)
+        self.assertEqual(other_response.status_code, 404)
+
+    def test_employee_can_create_and_edit_only_their_own_product_image(self):
+        product = self.create_product(self.vendor, "Image product")
+        other_product = self.create_product(self.other_vendor, "Other product")
+        other_image = ProductImage.objects.create(
+            product=other_product,
+            image=self.image_file("other.gif"),
+        )
+        self.client.force_login(self.user)
+
+        create_response = self.client.post(
+            reverse("vendor_portal:image_create", args=[product.pk]),
+            {
+                "image": self.image_file(),
+                "alt_text": "Front view",
+                "sort_order": 1,
+            },
+        )
+        product_image = ProductImage.objects.get(product=product)
+        edit_response = self.client.post(
+            reverse(
+                "vendor_portal:image_edit",
+                args=[product.pk, product_image.pk],
+            ),
+            {
+                "image": self.image_file("updated.gif"),
+                "alt_text": "Updated front view",
+                "sort_order": 2,
+            },
+        )
+        other_response = self.client.get(
+            reverse(
+                "vendor_portal:image_edit",
+                args=[other_product.pk, other_image.pk],
+            )
+        )
+
+        self.assertRedirects(
+            create_response,
+            reverse("vendor_portal:product_detail", args=[product.pk]),
+        )
+        self.assertRedirects(
+            edit_response,
+            reverse("vendor_portal:product_detail", args=[product.pk]),
+        )
+        product_image.refresh_from_db()
+        self.assertEqual(product_image.alt_text, "Updated front view")
+        self.assertEqual(product_image.sort_order, 2)
+        self.assertEqual(other_response.status_code, 404)
+
+    def test_variant_and_image_forms_do_not_expose_a_product_field(self):
+        self.assertNotIn("product", ProductVariantForm.Meta.fields)
+        self.assertNotIn("product", ProductImageForm.Meta.fields)
