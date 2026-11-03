@@ -4,7 +4,8 @@ from django.shortcuts import get_object_or_404, render
 from shop.models import Category, Product, ProductVariant, Vendor
 from shop.visibility import visible_products
 
-from .forms import CatalogueFilterForm
+from .availability import available_quantity_by_day
+from .forms import CatalogueFilterForm, RentalSelectionForm
 
 
 def catalogue(request):
@@ -116,6 +117,42 @@ def product_detail(request, product_id):
         pk=product_id,
     )
 
+    rental_form = RentalSelectionForm(
+        request.POST if request.method == "POST" else None,
+        product=product,
+    )
+
+    rental_result = None
+
+    if request.method == "POST" and rental_form.is_valid():
+        data = rental_form.cleaned_data
+        variant = data["variant_id"]
+
+        availability = available_quantity_by_day(
+            variant=variant,
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+        )
+
+        available_quantity = min(availability.values())
+
+        if data["quantity"] > available_quantity:
+            rental_form.add_error(
+                "quantity",
+                (
+                    f"Only {available_quantity} unit(s) are available "
+                    "for the entire selected period."
+                ),
+            )
+        else:
+            rental_result = {
+                "variant": variant,
+                "quantity": data["quantity"],
+                "rental_days": data["rental_days"],
+                "line_total": data["line_total"],
+                "available_quantity": available_quantity,
+            }
+
     related_products = (
         visible_products()
         .filter(category=product.category)
@@ -157,6 +194,8 @@ def product_detail(request, product_id):
             "total_stock": total_stock,
             "available_colours": available_colours,
             "default_colour": default_colour,
+            "rental_form": rental_form,
+            "rental_result": rental_result,
         },
     )
 

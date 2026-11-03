@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const pickers = document.querySelectorAll("[data-variant-picker]");
 
     pickers.forEach(function (picker) {
-        const colourButtons = picker.querySelectorAll("[data-colour]");
+        const colourButtons = picker.querySelectorAll(".colour-swatch");
         const sizeButtons = picker.querySelectorAll("[data-size-option]");
         const selectedColour = picker.querySelector("[data-selected-colour]");
         const selectedSize = picker.querySelector("[data-selected-size]");
@@ -49,13 +49,38 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 selectedSize.textContent = button.dataset.size;
                 stockMessage.textContent =
-                    button.dataset.stock + " in stock";
+                    button.dataset.stock + " owned — check your rental dates";
                 variantInput.value = button.dataset.variantId;
             });
         });
 
-        if (picker.dataset.defaultColour) {
+        const savedVariant = Array.from(sizeButtons).find(
+            button => button.dataset.variantId === variantInput.value
+        );
+
+        if (savedVariant) {
+            chooseColour(savedVariant.dataset.colour);
+            savedVariant.click();
+        } else if (picker.dataset.defaultColour) {
             chooseColour(picker.dataset.defaultColour);
+        }
+
+        const rentalForm = picker.closest("[data-rental-form]");
+        const rentalResult = rentalForm?.querySelector("[data-rental-result]");
+
+        if (rentalForm && rentalResult) {
+            const hidePreviousResult = () => {
+                rentalResult.hidden = true;
+            };
+
+            rentalForm.addEventListener("input", hidePreviousResult);
+            rentalForm.addEventListener("change", hidePreviousResult);
+
+            picker.addEventListener("click", event => {
+                if (event.target.closest(".colour-swatch, [data-size-option]")) {
+                    hidePreviousResult();
+                }
+            });
         }
     });
 });
