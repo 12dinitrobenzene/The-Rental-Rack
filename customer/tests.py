@@ -1,7 +1,212 @@
+from datetime import date
+from decimal import Decimal
+
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
+from customer.models import RentalItem, RentalOrder
 from shop.models import Category, Product, ProductVariant, Vendor
+
+
+class RentalItemValidationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="renter",
+            password="test-password",
+        )
+        self.vendor = Vendor.objects.create(
+            name="Rental Vendor",
+            contact_email="rental@example.com",
+        )
+        self.category = Category.objects.create(name="Rental Clothing")
+        self.product = Product.objects.create(
+            vendor=self.vendor,
+            category=self.category,
+            name="Rental Jacket",
+            description="A rental jacket.",
+            brand="Test",
+            daily_rate="20.00",
+        )
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
+            sku="rental-jacket-m",
+            size="M",
+            colour="Blue",
+        )
+        self.order = RentalOrder.objects.create(
+            customer=self.user,
+            vendor=self.vendor,
+            delivery_address="1 Test Street",
+            total_amount="60.00",
+        )
+
+    def make_item(self, **overrides):
+        values = {
+            "order": self.order,
+            "variant": self.variant,
+            "product_name_snapshot": "Rental Jacket",
+            "daily_rate_snapshot": Decimal("10.00"),
+            "quantity": 2,
+            "rental_start_date": date(2026, 11, 3),
+            "rental_end_date": date(2026, 11, 5),
+            "rental_days": 3,
+            "line_total": Decimal("60.00"),
+        }
+        values.update(overrides)
+        return RentalItem(**values)
+
+    def test_clean_validates_totals_using_snapshot_rate(self):
+        self.make_item().clean()
+
+    def test_clean_reports_inconsistent_days_and_total(self):
+        item = self.make_item(rental_days=2, line_total=Decimal("40.00"))
+
+        with self.assertRaises(ValidationError) as raised:
+            item.clean()
+
+        self.assertEqual(
+            set(raised.exception.message_dict),
+            {"rental_days", "line_total"},
+        )
+
+    def test_clean_rejects_variant_from_another_vendor(self):
+        other_vendor = Vendor.objects.create(
+            name="Other Vendor",
+            contact_email="other@example.com",
+        )
+        other_product = Product.objects.create(
+            vendor=other_vendor,
+            category=self.category,
+            name="Other Jacket",
+            description="Another rental jacket.",
+            brand="Test",
+            daily_rate="20.00",
+        )
+        other_variant = ProductVariant.objects.create(
+            product=other_product,
+            sku="other-jacket-m",
+            size="M",
+            colour="Blue",
+        )
+
+        with self.assertRaises(ValidationError) as raised:
+            self.make_item(variant=other_variant).clean()
+
+        self.assertIn("variant", raised.exception.message_dict)
+
+    def test_same_day_rental_counts_as_one_day(self):
+        item = self.make_item(
+            rental_end_date=date(2026, 11, 3),
+            rental_days=1,
+            line_total=Decimal("20.00"),
+        )
+
+        item.full_clean()
+        item.save()
+
+        self.assertEqual(item.rental_days, 1)
+        self.assertEqual(item.line_total, Decimal("20.00"))
+
+    def test_seven_day_rental_is_accepted(self):
+        item = self.make_item(
+            rental_end_date=date(2026, 11, 9),
+            rental_days=7,
+            line_total=Decimal("140.00"),
+        )
+
+        item.full_clean()
+        item.save()
+
+        self.assertEqual(item.rental_days, 7)
+
+    def test_eight_day_rental_is_rejected(self):
+        item = self.make_item(
+            rental_end_date=date(2026, 11, 10),
+            rental_days=8,
+            line_total=Decimal("160.00"),
+        )
+
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+
+    def test_zero_quantity_is_rejected(self):
+        item = self.make_item(
+            quantity=0,
+            line_total=Decimal("0.00"),
+        )
+
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+
+    def test_reversed_dates_are_rejected(self):
+        item = self.make_item(
+            rental_end_date=date(2026, 11, 2),
+        )
+
+        with self.assertRaises(ValidationError):
+            item.full_clean()
+
+    def test_product_changes_preserve_saved_snapshots(self):
+        item = self.make_item()
+        item.full_clean()
+        item.save()
+
+        # Change the current listing after the rental was recorded.
+        self.product.name = "Renamed Jacket"
+        self.product.daily_rate = Decimal("35.00")
+        self.product.save()
+
+        # Read the rental record again from the database.
+        item.refresh_from_db()
+
+        self.assertEqual(
+            item.product_name_snapshot,
+            "Rental Jacket",
+        )
+        self.assertEqual(
+            item.daily_rate_snapshot,
+            Decimal("10.00"),
+        )
+        self.assertEqual(
+            item.line_total,
+            Decimal("60.00"),
+        )
+
+    def test_order_supports_items_with_different_dates(self):
+        first_item = self.make_item()
+        first_item.full_clean()
+        first_item.save()
+
+        second_item = self.make_item(
+            rental_start_date=date(2026, 11, 10),
+            rental_end_date=date(2026, 11, 11),
+            rental_days=2,
+            line_total=Decimal("40.00"),
+        )
+        second_item.full_clean()
+        second_item.save()
+
+        self.order.total_amount = Decimal("100.00")
+        self.order.save(update_fields=["total_amount"])
+
+        self.assertEqual(self.order.items.count(), 2)
+
+        saved_periods = set(
+            self.order.items.values_list(
+                "rental_start_date",
+                "rental_end_date",
+            )
+        )
+
+        self.assertEqual(
+            saved_periods,
+            {
+                (date(2026, 11, 3), date(2026, 11, 5)),
+                (date(2026, 11, 10), date(2026, 11, 11)),
+            },
+        )
 
 
 class CatalogueFilterTests(TestCase):
