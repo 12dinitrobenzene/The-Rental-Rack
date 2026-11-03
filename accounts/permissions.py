@@ -2,6 +2,7 @@ from django.core.exceptions import PermissionDenied
 
 from .models import VendorEmployee
 from .roles import (
+    CUSTOMER_GROUP,
     PLATFORM_ADMIN_GROUP,
     VENDOR_EMPLOYEE_GROUP,
     role_for_user,
@@ -44,3 +45,12 @@ def require_platform_admin(user):
         raise PermissionDenied(
             "Platform administrator access is required."
         )
+
+
+def require_customer(user):
+    if (
+        not user.is_authenticated
+        or not user.is_active
+        or role_for_user(user) != CUSTOMER_GROUP
+    ):
+        raise PermissionDenied("Customer access is required.")

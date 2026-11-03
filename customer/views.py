@@ -1,11 +1,14 @@
-from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, render
 
+from accounts.permissions import require_customer
 from shop.models import Category, Product, ProductVariant, Vendor
 from shop.visibility import visible_products
 
 from .availability import available_quantity_by_day
 from .forms import CatalogueFilterForm, RentalSelectionForm
+from .models import RentalItem, RentalOrder
 
 
 def catalogue(request):
@@ -208,4 +211,66 @@ def style_preferences(request):
             "title": "Style preferences",
             "message": "Personal style preferences will be available here.",
         },
+    )
+
+
+def _orders_for_customer(user):
+    return (
+        RentalOrder.objects.filter(customer=user)
+        .select_related("vendor")
+        .prefetch_related(
+            Prefetch(
+                "items",
+                queryset=RentalItem.objects.select_related("variant"),
+            )
+        )
+    )
+
+
+@login_required(login_url="accounts:login")
+def order_history(request):
+    require_customer(request.user)
+
+    orders = _orders_for_customer(request.user).order_by(
+        "-created_at",
+        "-pk",
+    )
+
+    return render(
+        request,
+        "customer/order_history.html",
+        {"orders": orders},
+    )
+
+
+@login_required(login_url="accounts:login")
+def order_detail(request, order_id):
+    require_customer(request.user)
+
+    order = get_object_or_404(
+        _orders_for_customer(request.user),
+        pk=order_id,
+    )
+
+    return render(
+        request,
+        "customer/order_detail.html",
+        {"order": order},
+    )
+
+
+@login_required(login_url="accounts:login")
+def order_confirmation(request, order_id):
+    require_customer(request.user)
+
+    order = get_object_or_404(
+        _orders_for_customer(request.user),
+        pk=order_id,
+        payment_status=RentalOrder.PaymentStatus.PAID,
+    )
+
+    return render(
+        request,
+        "customer/order_confirmation.html",
+        {"order": order},
     )

@@ -9,6 +9,21 @@ urlpatterns = [
     path("", views.customer_home, name="home"),
     path("catalogue/", views.catalogue, name="catalogue"),
     path("products/<int:product_id>/", views.product_detail, name="product_detail"),
+    path(
+        "orders/",
+        views.order_history,
+        name="order_history",
+    ),
+    path(
+        "orders/<int:order_id>/",
+        views.order_detail,
+        name="order_detail",
+    ),
+    path(
+        "orders/<int:order_id>/confirmation/",
+        views.order_confirmation,
+        name="order_confirmation",
+    ),
     path("preferences/", views.style_preferences, name="style_preferences"),
     path(
         "cart/",
@@ -21,11 +36,7 @@ urlpatterns = [
     ),
     path(
         "account/",
-        views.customer_placeholder,
-        {
-            "title": "Your account",
-            "message": "Your account details and rental history will appear here.",
-        },
+        views.order_history,
         name="account",
     ),
     path(

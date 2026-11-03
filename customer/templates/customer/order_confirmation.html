@@ -1,0 +1,18 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}Payment confirmed | Clothing Store{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <p class="text-success">Simulated payment successful</p>
+    <h1>Payment confirmed</h1>
+    <p>Your rental order has been recorded.</p>
+</header>
+
+{% include "customer/components/order_summary.html" with order=order only %}
+
+<a class="btn btn-dark mt-4"
+   href="{% url 'customer:order_history' %}">
+    View rental history
+</a>
+{% endblock %}

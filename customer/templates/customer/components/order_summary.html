@@ -1,0 +1,65 @@
+<section aria-label="Order summary">
+    <dl class="row">
+        <dt class="col-sm-4">Order number</dt>
+        <dd class="col-sm-8">#{{ order.pk }}</dd>
+
+        <dt class="col-sm-4">Vendor</dt>
+        <dd class="col-sm-8">{{ order.vendor.name }}</dd>
+
+        <dt class="col-sm-4">Placed on</dt>
+        <dd class="col-sm-8">
+            {{ order.created_at|date:"d M Y, H:i" }}
+        </dd>
+
+        <dt class="col-sm-4">Payment</dt>
+        <dd class="col-sm-8">
+            {{ order.get_payment_status_display }}
+        </dd>
+
+        <dt class="col-sm-4">Delivery address</dt>
+        <dd class="col-sm-8">
+            {{ order.delivery_address|linebreaksbr }}
+        </dd>
+    </dl>
+
+    <h2 class="h4 mt-4">Rental items</h2>
+
+    {% for item in order.items.all %}
+        <article class="border-bottom py-4">
+            <h3 class="h5">
+                {{ item.product_name_snapshot }}
+            </h3>
+
+            <p class="text-muted mb-2">
+                {{ item.variant.size }} /
+                {{ item.variant.colour }}
+            </p>
+
+            <p class="mb-2">
+                {{ item.rental_start_date|date:"d M Y" }}
+                to
+                {{ item.rental_end_date|date:"d M Y" }}
+                · {{ item.rental_days }} day(s)
+            </p>
+
+            <p class="mb-2">
+                Quantity: {{ item.quantity }}
+                · SGD {{ item.daily_rate_snapshot|floatformat:2 }}/day
+            </p>
+
+            <p class="mb-2">
+                Status: {{ item.get_status_display }}
+            </p>
+
+            <strong>
+                Line total: SGD {{ item.line_total|floatformat:2 }}
+            </strong>
+        </article>
+    {% empty %}
+        <p class="text-muted">No rental items recorded.</p>
+    {% endfor %}
+
+    <p class="fs-5 fw-semibold mt-4">
+        Order total: SGD {{ order.total_amount|floatformat:2 }}
+    </p>
+</section>
