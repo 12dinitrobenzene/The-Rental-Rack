@@ -3,6 +3,12 @@
 from decimal import Decimal
 
 from django import forms
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+from shop.models import ProductVariant
+
+from .rental_rules import calculate_rental_totals
 
 
 class CatalogueFilterForm(forms.Form):
@@ -85,3 +91,84 @@ class CatalogueFilterForm(forms.Form):
             self.add_error("max_price", "Maximum price must be at least the minimum.")
 
         return cleaned_data
+
+
+class RentalSelectionForm(forms.Form):
+    variant_id = forms.ModelChoiceField(
+        queryset=ProductVariant.objects.none(),
+        widget=forms.HiddenInput(
+            attrs={"data-variant-input": ""}
+        ),
+        error_messages={
+            "required": "Please choose a colour and size.",
+            "invalid_choice": "That variant is not available.",
+        },
+    )
+
+    start_date = forms.DateField(
+        label="Rental start",
+        widget=forms.DateInput(
+            attrs={"type": "date", "class": "form-control"}
+        ),
+    )
+
+    end_date = forms.DateField(
+        label="Rental end",
+        widget=forms.DateInput(
+            attrs={"type": "date", "class": "form-control"}
+        ),
+    )
+
+    quantity = forms.IntegerField(
+        min_value=1,
+        initial=1,
+        widget=forms.NumberInput(
+            attrs={"class": "form-control", "min": 1}
+        ),
+    )
+
+    def __init__(self, *args, product, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.product = product
+
+        self.fields["variant_id"].queryset = (
+            product.variants.filter(
+                is_active=True,
+                total_quantity__gt=0,
+            )
+        )
+
+        today = timezone.localdate().isoformat()
+
+        for name in ("start_date", "end_date"):
+            self.fields[name].widget.attrs["min"] = today
+
+    def clean(self):
+        data = super().clean()
+
+        start = data.get("start_date")
+        end = data.get("end_date")
+        quantity = data.get("quantity")
+
+        if start and start < timezone.localdate():
+            self.add_error(
+                "start_date",
+                "Rental dates cannot start in the past.",
+            )
+            return data
+
+        if start and end and quantity is not None:
+            try:
+                days, total = calculate_rental_totals(
+                    daily_rate=self.product.daily_rate,
+                    quantity=quantity,
+                    start_date=start,
+                    end_date=end,
+                )
+            except ValidationError as error:
+                self.add_error("end_date", error)
+            else:
+                data["rental_days"] = days
+                data["line_total"] = total
+
+        return data

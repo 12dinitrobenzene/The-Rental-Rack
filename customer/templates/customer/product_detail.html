@@ -104,6 +104,14 @@
 
             <hr>
 
+            <form method="post"
+                  action="{% url 'customer:product_detail' product.pk %}"
+                  data-rental-form
+                  novalidate>
+
+                {% csrf_token %}
+                {{ rental_form.non_field_errors }}
+
             <section
                 class="variant-picker"
                 data-variant-picker
@@ -165,17 +173,88 @@
                         Choose a size
                     </p>
 
-                    <input
-                        type="hidden"
-                        name="variant_id"
-                        data-variant-input
-                    >
+                    {{ rental_form.variant_id }}
+
+                    <div class="text-danger small">
+                        {{ rental_form.variant_id.errors }}
+                    </div>
                 {% else %}
                     <p class="text-muted">
                         This product is currently unavailable.
                     </p>
                 {% endif %}
             </section>
+
+            <div class="row g-3 mt-2">
+                <div class="col-sm-6">
+                    <label for="{{ rental_form.start_date.id_for_label }}"
+                           class="form-label">
+                        {{ rental_form.start_date.label }}
+                    </label>
+
+                    {{ rental_form.start_date }}
+                    <div class="text-danger small">
+                        {{ rental_form.start_date.errors }}
+                    </div>
+                </div>
+
+                <div class="col-sm-6">
+                    <label for="{{ rental_form.end_date.id_for_label }}"
+                           class="form-label">
+                        {{ rental_form.end_date.label }}
+                    </label>
+
+                    {{ rental_form.end_date }}
+                    <div class="text-danger small">
+                        {{ rental_form.end_date.errors }}
+                    </div>
+                </div>
+
+                <div class="col-sm-6">
+                    <label for="{{ rental_form.quantity.id_for_label }}"
+                           class="form-label">
+                        {{ rental_form.quantity.label }}
+                    </label>
+
+                    {{ rental_form.quantity }}
+                    <div class="text-danger small">
+                        {{ rental_form.quantity.errors }}
+                    </div>
+                </div>
+            </div>
+
+            <p class="small text-muted mt-3">
+                Rent for 1–7 days. Both start and end dates are included.
+            </p>
+
+            <button type="submit" class="btn btn-dark">
+                Check availability
+            </button>
+
+            {% if rental_result %}
+                <div class="alert alert-success mt-3"
+                     role="status"
+                     data-rental-result>
+                    <p class="mb-1">
+                        {{ rental_result.quantity }} ×
+                        {{ rental_result.variant.size }} /
+                        {{ rental_result.variant.colour }}
+                        available for {{ rental_result.rental_days }} day(s).
+                    </p>
+
+                    <p class="mb-1">
+                        Estimated rental total:
+                        SGD {{ rental_result.line_total|floatformat:2 }}
+                    </p>
+
+                    <p class="small mb-0">
+                        This check does not reserve stock.
+                        Availability will be checked again at checkout.
+                    </p>
+                </div>
+            {% endif %}
+
+            </form>
 
             <hr>
 

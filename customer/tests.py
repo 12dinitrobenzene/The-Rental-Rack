@@ -1,11 +1,14 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 
+from customer.forms import RentalSelectionForm
 from customer.models import RentalItem, RentalOrder
 from shop.models import Category, Product, ProductVariant, Vendor
 
@@ -209,6 +212,101 @@ class RentalItemValidationTests(TestCase):
         )
 
 
+class RentalSelectionFormTests(TestCase):
+    def setUp(self):
+        self.vendor = Vendor.objects.create(
+            name="Selection Vendor",
+            contact_email="selection@example.com",
+        )
+        self.category = Category.objects.create(name="Selection Clothing")
+        self.product = Product.objects.create(
+            vendor=self.vendor,
+            category=self.category,
+            name="Selection Jacket",
+            description="A rental jacket.",
+            brand="Test",
+            daily_rate=Decimal("20.00"),
+        )
+        self.variant = ProductVariant.objects.create(
+            product=self.product,
+            sku="selection-jacket-m",
+            size="M",
+            colour="Blue",
+            total_quantity=2,
+        )
+
+    @patch("customer.forms.timezone.localdate", return_value=date(2026, 11, 3))
+    def test_valid_selection_calculates_inclusive_rental_total(self, localdate):
+        form = RentalSelectionForm(
+            data={
+                "variant_id": str(self.variant.pk),
+                "start_date": "2026-11-03",
+                "end_date": "2026-11-05",
+                "quantity": "2",
+            },
+            product=self.product,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["rental_days"], 3)
+        self.assertEqual(form.cleaned_data["line_total"], Decimal("120.00"))
+        self.assertEqual(
+            form.fields["start_date"].widget.attrs["min"],
+            "2026-11-03",
+        )
+
+    @patch("customer.forms.timezone.localdate", return_value=date(2026, 11, 3))
+    def test_variant_from_another_product_is_rejected(self, localdate):
+        other_product = Product.objects.create(
+            vendor=self.vendor,
+            category=self.category,
+            name="Other Selection Jacket",
+            description="Another rental jacket.",
+            brand="Test",
+            daily_rate="20.00",
+        )
+        other_variant = ProductVariant.objects.create(
+            product=other_product,
+            sku="other-selection-jacket-m",
+            size="M",
+            colour="Green",
+            total_quantity=1,
+        )
+        form = RentalSelectionForm(
+            data={
+                "variant_id": str(other_variant.pk),
+                "start_date": "2026-11-03",
+                "end_date": "2026-11-03",
+                "quantity": "1",
+            },
+            product=self.product,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["variant_id"],
+            ["That variant is not available."],
+        )
+
+    @patch("customer.forms.timezone.localdate", return_value=date(2026, 11, 3))
+    def test_past_start_date_is_rejected(self, localdate):
+        form = RentalSelectionForm(
+            data={
+                "variant_id": str(self.variant.pk),
+                "start_date": "2026-11-02",
+                "end_date": "2026-11-03",
+                "quantity": "1",
+            },
+            product=self.product,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn(
+            "Rental dates cannot start in the past.",
+            form.errors["start_date"],
+        )
+
+
 class CatalogueFilterTests(TestCase):
     def setUp(self):
         self.vendor = Vendor.objects.create(
@@ -354,7 +452,7 @@ class PublicProductVisibilityTests(TestCase):
             is_published=True,
         )
 
-        ProductVariant.objects.create(
+        self.variant = ProductVariant.objects.create(
             product=self.product,
             sku="visibility-shirt-m",
             size="M",
@@ -386,6 +484,49 @@ class PublicProductVisibilityTests(TestCase):
             reverse("customer:product_detail", args=[self.product.pk])
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_product_detail_post_returns_available_rental_result(self):
+        start = timezone.localdate()
+        response = self.client.post(
+            reverse("customer:product_detail", args=[self.product.pk]),
+            {
+                "variant_id": self.variant.pk,
+                "start_date": start.isoformat(),
+                "end_date": (start + timedelta(days=1)).isoformat(),
+                "quantity": "2",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["rental_result"],
+            {
+                "variant": self.variant,
+                "quantity": 2,
+                "rental_days": 2,
+                "line_total": Decimal("48.00"),
+                "available_quantity": 2,
+            },
+        )
+
+    def test_product_detail_post_reports_insufficient_availability(self):
+        start = timezone.localdate()
+        response = self.client.post(
+            reverse("customer:product_detail", args=[self.product.pk]),
+            {
+                "variant_id": self.variant.pk,
+                "start_date": start.isoformat(),
+                "end_date": start.isoformat(),
+                "quantity": "3",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context["rental_result"])
+        self.assertIn(
+            "Only 2 unit(s) are available for the entire selected period.",
+            response.context["rental_form"].errors["quantity"],
+        )
 
     def test_inactive_product_is_hidden(self):
         self.product.is_active = False
