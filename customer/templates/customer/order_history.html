@@ -1,0 +1,45 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}Rental history | Clothing Store{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <h1>Your rental history</h1>
+    <p class="text-muted">View your rental orders and their details.</p>
+</header>
+
+{% for order in orders %}
+    <article class="border-bottom py-4">
+        <div class="d-flex flex-wrap justify-content-between gap-3">
+            <div>
+                <h2 class="h5">Order #{{ order.pk }}</h2>
+
+                <p class="mb-1">{{ order.vendor.name }}</p>
+
+                <p class="text-muted mb-1">
+                    {{ order.created_at|date:"d M Y" }}
+                    · {{ order.get_payment_status_display }}
+                </p>
+
+                <p class="mb-0">
+                    SGD {{ order.total_amount|floatformat:2 }}
+                </p>
+            </div>
+
+            <div>
+                <a class="btn btn-outline-dark"
+                   href="{% url 'customer:order_detail' order.pk %}">
+                    View order
+                </a>
+            </div>
+        </div>
+    </article>
+{% empty %}
+    <p>You haven’t placed any rental orders yet.</p>
+
+    <a class="btn btn-dark"
+       href="{% url 'customer:catalogue' %}">
+        Browse clothing
+    </a>
+{% endfor %}
+{% endblock %}

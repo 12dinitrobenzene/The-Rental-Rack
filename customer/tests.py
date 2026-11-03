@@ -3,6 +3,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
@@ -572,3 +573,271 @@ class PublicProductVisibilityTests(TestCase):
         self.product.save()
 
         self.assert_hidden_from_customers()
+
+
+class RentalHistoryTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.customer_group, _ = Group.objects.get_or_create(
+            name="Customer"
+        )
+
+        cls.customer = get_user_model().objects.create_user(
+            username="history-owner"
+        )
+        cls.other_customer = get_user_model().objects.create_user(
+            username="history-other"
+        )
+
+        cls.customer.groups.add(cls.customer_group)
+        cls.other_customer.groups.add(cls.customer_group)
+
+        vendor = Vendor.objects.create(
+            name="History Vendor",
+            contact_email="history@example.com",
+        )
+        category = Category.objects.create(name="History Clothing")
+
+        cls.product = Product.objects.create(
+            vendor=vendor,
+            category=category,
+            name="Original Jacket",
+            description="Test clothing",
+            brand="Test",
+            daily_rate=Decimal("12.00"),
+        )
+        cls.variant = ProductVariant.objects.create(
+            product=cls.product,
+            sku="history-jacket-m-blue",
+            size="M",
+            colour="Blue",
+            total_quantity=5,
+        )
+
+        def create_order(customer, snapshot_name, address):
+            order = RentalOrder.objects.create(
+                customer=customer,
+                vendor=vendor,
+                delivery_address=address,
+                payment_status=RentalOrder.PaymentStatus.PAID,
+                total_amount=Decimal("72.00"),
+            )
+
+            item = RentalItem(
+                order=order,
+                variant=cls.variant,
+                product_name_snapshot=snapshot_name,
+                daily_rate_snapshot=Decimal("12.00"),
+                quantity=2,
+                rental_start_date=date(2026, 11, 10),
+                rental_end_date=date(2026, 11, 12),
+                rental_days=3,
+                line_total=Decimal("72.00"),
+                status=RentalItem.Status.CONFIRMED,
+            )
+            item.full_clean()
+            item.save()
+
+            return order, item
+
+        cls.order, cls.item = create_order(
+            cls.customer,
+            "Snapshot Jacket",
+            "Owner delivery address",
+        )
+        cls.other_order, _ = create_order(
+            cls.other_customer,
+            "Private rental item",
+            "Private delivery address",
+        )
+
+    def order_urls(self, order):
+        return [
+            reverse(
+                "customer:order_detail",
+                kwargs={"order_id": order.pk},
+            ),
+            reverse(
+                "customer:order_confirmation",
+                kwargs={"order_id": order.pk},
+            ),
+        ]
+
+    def protected_urls(self):
+        return [
+            reverse("customer:order_history"),
+            reverse("customer:account"),
+            *self.order_urls(self.order),
+        ]
+
+    def test_logged_out_users_are_redirected(self):
+        for url in self.protected_urls():
+            with self.subTest(url=url):
+                response = self.client.get(url)
+
+                self.assertRedirects(
+                    response,
+                    f"{reverse('accounts:login')}?next={url}",
+                    fetch_redirect_response=False,
+                )
+
+    def test_employee_and_admin_roles_are_forbidden(self):
+        for role in ("Vendor Employee", "Platform Admin"):
+            group, _ = Group.objects.get_or_create(name=role)
+            self.customer.groups.set([group])
+            self.client.force_login(self.customer)
+
+            for url in self.protected_urls():
+                with self.subTest(role=role, url=url):
+                    response = self.client.get(url)
+                    self.assertEqual(response.status_code, 403)
+
+    def test_history_lists_only_the_customers_own_orders(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(
+            reverse("customer:order_history")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["orders"]),
+            [self.order],
+        )
+
+    def test_customer_can_view_own_details_and_paid_confirmation(self):
+        self.client.force_login(self.customer)
+
+        for url in self.order_urls(self.order):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response.context["order"],
+                    self.order,
+                )
+
+                for text in (
+                    "Snapshot Jacket",
+                    "History Vendor",
+                    "Blue",
+                    "10 Nov 2026",
+                    "12 Nov 2026",
+                    "Quantity: 2",
+                    "SGD 12.00/day",
+                    "Line total: SGD 72.00",
+                    "Paid",
+                    "Confirmed",
+                ):
+                    self.assertContains(response, text)
+
+                self.assertNotContains(
+                    response, "Private rental item"
+                )
+                self.assertNotContains(
+                    response, "Private delivery address"
+                )
+
+    def test_another_customers_order_returns_404(self):
+        self.client.force_login(self.customer)
+
+        for url in self.order_urls(self.other_order):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 404)
+
+    def test_unpaid_orders_cannot_show_successful_confirmation(self):
+        self.client.force_login(self.customer)
+
+        url = reverse(
+            "customer:order_confirmation",
+            kwargs={"order_id": self.order.pk},
+        )
+
+        for status in (
+            RentalOrder.PaymentStatus.PENDING,
+            RentalOrder.PaymentStatus.FAILED,
+        ):
+            with self.subTest(status=status):
+                self.order.payment_status = status
+                self.order.save(update_fields=["payment_status"])
+
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 404)
+
+    def test_customer_with_no_orders_sees_empty_history(self):
+        empty_customer = get_user_model().objects.create_user(
+            username="history-empty"
+        )
+        empty_customer.groups.add(self.customer_group)
+        self.client.force_login(empty_customer)
+
+        response = self.client.get(
+            reverse("customer:order_history")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["orders"]), [])
+        self.assertContains(response, "Browse clothing")
+
+    def test_product_edits_do_not_change_displayed_snapshots(self):
+        self.product.name = "Updated Live Listing"
+        self.product.daily_rate = Decimal("40.00")
+        self.product.save()
+
+        self.client.force_login(self.customer)
+
+        for url in self.order_urls(self.order):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+
+                self.assertContains(response, "Snapshot Jacket")
+                self.assertContains(response, "SGD 12.00/day")
+                self.assertContains(
+                    response, "Order total: SGD 72.00"
+                )
+                self.assertNotContains(
+                    response, "Updated Live Listing"
+                )
+                self.assertNotContains(response, "SGD 40.00/day")
+
+    def test_reopening_confirmation_does_not_create_orders_or_clear_cart(self):
+        self.client.force_login(self.customer)
+
+        cart = [{
+            "variant_id": self.variant.pk,
+            "quantity": 1,
+            "start_date": "2026-11-15",
+            "end_date": "2026-11-16",
+        }]
+
+        session = self.client.session
+        session["rental_cart"] = cart
+        session.save()
+
+        before = (
+            RentalOrder.objects.count(),
+            RentalItem.objects.count(),
+        )
+
+        url = reverse(
+            "customer:order_confirmation",
+            kwargs={"order_id": self.order.pk},
+        )
+
+        for _ in range(2):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            (
+                RentalOrder.objects.count(),
+                RentalItem.objects.count(),
+            ),
+            before,
+        )
+        self.assertEqual(
+            self.client.session["rental_cart"],
+            cart,
+        )
