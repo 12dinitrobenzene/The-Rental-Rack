@@ -1,0 +1,137 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}Your cart | Clothing Store{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-uppercase small text-muted mb-1">Rental cart</p>
+        <h1 class="mb-0">Your cart</h1>
+    </div>
+
+    <a href="{% url 'customer:catalogue' %}"
+       class="btn btn-outline-dark">
+        Continue browsing
+    </a>
+</div>
+
+{% if cart_lines %}
+    <div class="row g-4">
+        <div class="col-lg-8">
+            {% for line in cart_lines %}
+                <article class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-3">
+                            <div>
+                                <h2 class="h5 mb-1">
+                                    <a href="{% url 'customer:product_detail' line.variant.product.pk %}"
+                                       class="text-dark">
+                                        {{ line.variant.product.name }}
+                                    </a>
+                                </h2>
+                                <p class="text-muted mb-2">
+                                    {{ line.variant.product.vendor.name }} ·
+                                    {{ line.variant.size }} / {{ line.variant.colour }}
+                                </p>
+                            </div>
+
+                            <form method="post"
+                                  action="{% url 'customer:cart_remove' line.line_index %}">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-danger">
+                                    Remove
+                                </button>
+                            </form>
+                        </div>
+
+                        <form method="post"
+                              action="{% url 'customer:cart_update' line.line_index %}"
+                              class="row g-3 align-items-end">
+                            {% csrf_token %}
+
+                            <div class="col-md-4">
+                                <label for="{{ line.update_form.start_date.id_for_label }}"
+                                       class="form-label">
+                                    Start date
+                                </label>
+                                {{ line.update_form.start_date }}
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="{{ line.update_form.end_date.id_for_label }}"
+                                       class="form-label">
+                                    End date
+                                </label>
+                                {{ line.update_form.end_date }}
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="{{ line.update_form.quantity.id_for_label }}"
+                                       class="form-label">
+                                    Quantity
+                                </label>
+                                {{ line.update_form.quantity }}
+                            </div>
+
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-dark w-100">
+                                    Update
+                                </button>
+                            </div>
+                        </form>
+
+                        <dl class="row mt-3 mb-0 small">
+                            <dt class="col-sm-3">Rental period</dt>
+                            <dd class="col-sm-9">
+                                {{ line.start_date|date:"Y-m-d" }} to
+                                {{ line.end_date|date:"Y-m-d" }}
+                                ({{ line.rental_days }} day{{ line.rental_days|pluralize }})
+                            </dd>
+
+                            <dt class="col-sm-3">Daily rate</dt>
+                            <dd class="col-sm-9">
+                                SGD {{ line.daily_rate|floatformat:2 }}
+                            </dd>
+
+                            <dt class="col-sm-3">Line total</dt>
+                            <dd class="col-sm-9 mb-0">
+                                SGD {{ line.line_total|floatformat:2 }}
+                            </dd>
+                        </dl>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <aside class="col-lg-4">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Order summary</h2>
+                    <div class="d-flex justify-content-between fs-5 fw-semibold">
+                        <span>Cart total</span>
+                        <span>SGD {{ cart_total|floatformat:2 }}</span>
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">
+                        Availability and final pricing will be checked again
+                        during checkout.
+                    </p>
+                </div>
+            </div>
+        </aside>
+    </div>
+{% else %}
+    <section class="card">
+        <div class="card-body py-5 text-center">
+            <h2 class="h4">Your cart is empty</h2>
+            <p class="text-muted">
+                Browse the catalogue to choose clothing and rental dates.
+            </p>
+            <a href="{% url 'customer:catalogue' %}"
+               class="btn btn-dark">
+                Browse clothing
+            </a>
+        </div>
+    </section>
+{% endif %}
+{% endblock %}
