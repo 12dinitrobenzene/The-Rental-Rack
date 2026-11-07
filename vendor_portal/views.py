@@ -1,11 +1,22 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views import View
 from django.views.decorators.http import require_POST
 
 from accounts.permissions import get_employee_for_user
-from shop.models import Product, ProductImage, ProductVariant
+from shop.models import (
+    Product,
+    ProductImage,
+    ProductVariant,
+    RentalItem,
+    RentalReturn,
+    RentalSettlement,
+    ReturnInspection,
+)
 
 from .forms import ProductForm, ProductImageForm, ProductVariantForm
 
@@ -48,6 +59,26 @@ def product_image_or_404(product, image_id):
     )
 
 
+def employee_rental_item_or_404(employee, item_id, *, for_update=False):
+    rental_items = RentalItem.objects.select_related(
+        "order",
+        "order__customer",
+        "order__vendor",
+        "variant",
+        "variant__product",
+    ).filter(order__vendor=employee.vendor)
+
+    if for_update:
+        rental_items = rental_items.select_for_update()
+    else:
+        rental_items = rental_items.select_related(
+            "rental_return__inspection",
+            "settlement",
+        )
+
+    return get_object_or_404(rental_items, pk=item_id)
+
+
 @login_required(login_url="accounts:login")
 def employee_home(request):
     employee = get_employee_for_user(request.user)
@@ -63,6 +94,17 @@ def employee_home(request):
         product.total_stock = product.total_stock or 0
         product.status_label, product.status_style = inventory_status(product)
 
+    rental_items = (
+        RentalItem.objects.filter(order__vendor=employee.vendor)
+        .select_related(
+            "order",
+            "order__customer",
+            "variant",
+            "settlement",
+        )
+        .order_by("-order__created_at", "pk")
+    )
+
     return render(
         request,
         "vendor_portal/home.html",
@@ -70,8 +112,105 @@ def employee_home(request):
             "vendor": employee.vendor,
             "employee": employee,
             "products": products,
+            "rental_items": rental_items,
         },
     )
+
+
+@login_required(login_url="accounts:login")
+def employee_rental_detail(request, item_id):
+    employee = get_employee_for_user(request.user)
+    rental_item = employee_rental_item_or_404(employee, item_id)
+    can_complete_and_settle = (
+        rental_item.status == RentalItem.Status.RETURNED
+        and RentalSettlement.has_eligible_inspection(rental_item)
+        and not hasattr(rental_item, "settlement")
+    )
+
+    return render(
+        request,
+        "vendor_portal/rental_detail.html",
+        {
+            "vendor": employee.vendor,
+            "rental_item": rental_item,
+            "can_complete_and_settle": can_complete_and_settle,
+        },
+    )
+
+
+class CompleteRentalView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+
+    def post(self, request, item_id):
+        employee = get_employee_for_user(request.user)
+
+        with transaction.atomic():
+            rental_item = employee_rental_item_or_404(
+                employee,
+                item_id,
+                for_update=True,
+            )
+            RentalReturn.objects.select_for_update().filter(
+                rental_item=rental_item
+            ).first()
+            ReturnInspection.objects.select_for_update().filter(
+                rental_return__rental_item=rental_item
+            ).first()
+            existing_settlement = (
+                RentalSettlement.objects.select_for_update()
+                .filter(rental_item=rental_item)
+                .first()
+            )
+
+            if existing_settlement:
+                messages.info(
+                    request,
+                    "This rental item already has a simulated settlement.",
+                )
+                return redirect(
+                    "vendor_portal:rental_detail",
+                    item_id=rental_item.pk,
+                )
+
+            if rental_item.status not in {
+                RentalItem.Status.RETURNED,
+                RentalItem.Status.COMPLETED,
+            }:
+                messages.error(
+                    request,
+                    "Only an inspected returned item can be completed.",
+                )
+                return redirect(
+                    "vendor_portal:rental_detail",
+                    item_id=rental_item.pk,
+                )
+
+            if not RentalSettlement.has_eligible_inspection(rental_item):
+                messages.error(
+                    request,
+                    "Complete the return inspection before settlement.",
+                )
+                return redirect(
+                    "vendor_portal:rental_detail",
+                    item_id=rental_item.pk,
+                )
+
+            if rental_item.status == RentalItem.Status.RETURNED:
+                rental_item.transition_to(RentalItem.Status.COMPLETED)
+
+            settlement = RentalSettlement.build_for_item(rental_item)
+            settlement.full_clean()
+            rental_item.save(update_fields=["status"])
+            settlement.save()
+
+        messages.success(
+            request,
+            "Rental completed and simulated settlement recorded.",
+        )
+        return redirect(
+            "vendor_portal:rental_detail",
+            item_id=rental_item.pk,
+        )
 
 
 @login_required(login_url="accounts:login")

@@ -1,0 +1,71 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Rental item #{{ rental_item.pk }} | {{ vendor.name }}{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'vendor_portal:home' %}#rental-fulfilment">
+    Back to rental fulfilment
+</a>
+
+<header class="my-4">
+    <p class="text-muted small text-uppercase mb-1">Order #{{ rental_item.order_id }}</p>
+    <h1 class="mb-1">{{ rental_item.product_name_snapshot }}</h1>
+    <p class="text-muted mb-0">Rental item #{{ rental_item.pk }}</p>
+</header>
+
+<section class="border rounded p-4" aria-labelledby="rental-details-heading">
+    <h2 class="h4" id="rental-details-heading">Rental details</h2>
+    <dl class="row mb-0">
+        <dt class="col-sm-4">Customer</dt>
+        <dd class="col-sm-8">{{ rental_item.order.customer.username }}</dd>
+
+        <dt class="col-sm-4">Variant</dt>
+        <dd class="col-sm-8">{{ rental_item.variant.size }} / {{ rental_item.variant.colour }}</dd>
+
+        <dt class="col-sm-4">Rental dates</dt>
+        <dd class="col-sm-8">
+            {{ rental_item.rental_start_date|date:"d M Y" }}–{{ rental_item.rental_end_date|date:"d M Y" }}
+        </dd>
+
+        <dt class="col-sm-4">Fulfilment status</dt>
+        <dd class="col-sm-8">
+            <span class="badge text-bg-secondary">{{ rental_item.get_status_display }}</span>
+        </dd>
+
+        <dt class="col-sm-4">Gross rental amount</dt>
+        <dd class="col-sm-8">SGD {{ rental_item.line_total|floatformat:2 }}</dd>
+
+        <dt class="col-sm-4">Inspection</dt>
+        <dd class="col-sm-8">
+            {% if rental_item.rental_return.inspection %}
+                {{ rental_item.rental_return.inspection.get_condition_display }}
+            {% else %}
+                <span class="text-muted">Not completed</span>
+            {% endif %}
+        </dd>
+    </dl>
+</section>
+
+{% if rental_item.settlement %}
+    {% include "vendor_portal/components/settlement_summary.html" with settlement=rental_item.settlement only %}
+{% elif can_complete_and_settle %}
+    <section class="border rounded p-4 mt-4" aria-labelledby="complete-heading">
+        <h2 class="h4" id="complete-heading">Complete rental</h2>
+        <p class="text-muted">
+            Completion records the simulated 20% platform commission and 80% vendor payout.
+        </p>
+        <form method="post" action="{% url 'vendor_portal:rental_complete' rental_item.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-dark" type="submit">Complete and record settlement</button>
+        </form>
+    </section>
+{% elif rental_item.status == "Cancelled" %}
+    <p class="alert alert-secondary mt-4 mb-0">
+        Cancelled rental items do not produce a settlement.
+    </p>
+{% else %}
+    <p class="alert alert-light border mt-4 mb-0">
+        Settlement remains pending until the rental is returned and has an eligible inspection.
+    </p>
+{% endif %}
+{% endblock %}

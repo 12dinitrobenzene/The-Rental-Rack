@@ -535,32 +535,64 @@ class RentalSettlement(models.Model):
             ),
         ]
 
+    @classmethod
+    def has_eligible_inspection(cls, rental_item):
+        rental_return = getattr(rental_item, "rental_return", None)
+        inspection = (
+            getattr(rental_return, "inspection", None)
+            if rental_return
+            else None
+        )
+        return (
+            inspection is not None
+            and inspection.condition
+            in {
+                ReturnInspection.Condition.READY,
+                ReturnInspection.Condition.WRITTEN_OFF,
+            }
+        )
+
+    @classmethod
+    def calculate_amounts(cls, rental_item):
+        platform_amount = (
+            rental_item.line_total
+            * rental_item.commission_rate_snapshot
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        vendor_amount = rental_item.line_total - platform_amount
+        return platform_amount, vendor_amount
+
+    @classmethod
+    def build_for_item(cls, rental_item):
+        platform_amount, vendor_amount = cls.calculate_amounts(rental_item)
+        return cls(
+            rental_item=rental_item,
+            commission_rate_snapshot=(
+                rental_item.commission_rate_snapshot
+            ),
+            platform_amount=platform_amount,
+            vendor_amount=vendor_amount,
+        )
+
+    @property
+    def platform_percentage(self):
+        return self.commission_rate_snapshot * Decimal("100")
+
+    @property
+    def vendor_percentage(self):
+        return Decimal("100") - self.platform_percentage
+
     def clean(self):
         super().clean()
         errors = {}
 
         if self.rental_item_id:
             rental_item = self.rental_item
-            rental_return = getattr(rental_item, "rental_return", None)
-            inspection = (
-                getattr(rental_return, "inspection", None)
-                if rental_return
-                else None
-            )
-
             if rental_item.status != RentalItem.Status.COMPLETED:
                 errors["rental_item"] = (
                     "Settlement requires a completed rental item."
                 )
 
-            if (
-                inspection is None
-                or inspection.condition
-                not in {
-                    ReturnInspection.Condition.READY,
-                    ReturnInspection.Condition.WRITTEN_OFF,
-                }
-            ):
+            if not self.has_eligible_inspection(rental_item):
                 errors["rental_item"] = (
                     "Settlement requires an eligible return inspection."
                 )
@@ -578,11 +610,9 @@ class RentalSettlement(models.Model):
                 self.commission_rate_snapshot is not None
                 and rental_item.line_total is not None
             ):
-                expected_platform = (
-                    rental_item.line_total
-                    * self.commission_rate_snapshot
-                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                expected_vendor = rental_item.line_total - expected_platform
+                expected_platform, expected_vendor = (
+                    self.calculate_amounts(rental_item)
+                )
 
                 if self.platform_amount != expected_platform:
                     errors["platform_amount"] = (

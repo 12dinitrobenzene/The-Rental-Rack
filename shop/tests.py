@@ -165,18 +165,27 @@ class RentalLifecycleModelTests(TestCase):
         )
         self.item.status = RentalItem.Status.COMPLETED
         self.item.save(update_fields=["status"])
-        settlement = RentalSettlement(
-            rental_item=self.item,
-            commission_rate_snapshot=Decimal("0.2000"),
-            platform_amount=Decimal("4.00"),
-            vendor_amount=Decimal("16.00"),
-        )
+        settlement = RentalSettlement.build_for_item(self.item)
 
         settlement.full_clean()
         settlement.save()
 
         self.assertEqual(settlement.platform_amount, Decimal("4.00"))
         self.assertEqual(settlement.vendor_amount, Decimal("16.00"))
+
+    def test_settlement_rounding_still_reconciles_to_line_total(self):
+        self.item.line_total = Decimal("10.03")
+
+        platform_amount, vendor_amount = (
+            RentalSettlement.calculate_amounts(self.item)
+        )
+
+        self.assertEqual(platform_amount, Decimal("2.01"))
+        self.assertEqual(vendor_amount, Decimal("8.02"))
+        self.assertEqual(
+            platform_amount + vendor_amount,
+            self.item.line_total,
+        )
 
     def test_settlement_rejects_ineligible_or_incorrect_amounts(self):
         settlement = RentalSettlement(
