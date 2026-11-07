@@ -1,0 +1,93 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}Checkout | Clothing Store{% endblock %}
+
+{% block content %}
+<div class="row g-5">
+    <section class="col-lg-7">
+        <p class="text-uppercase small text-muted mb-1">Final step</p>
+        <h1>Checkout</h1>
+        <p class="text-muted">
+            Confirm where your rental should be delivered.
+        </p>
+
+        <form method="post" class="mt-4">
+            {% csrf_token %}
+
+            <div class="mb-4">
+                <label for="{{ form.delivery_address.id_for_label }}"
+                       class="form-label">
+                    {{ form.delivery_address.label }}
+                </label>
+                {{ form.delivery_address }}
+                <div class="text-danger small">
+                    {{ form.delivery_address.errors }}
+                </div>
+            </div>
+
+            <div class="card bg-light border-0 mb-4">
+                <div class="card-body">
+                    <h2 class="h5">Simulated payment</h2>
+                    <p class="small text-muted">
+                        No real payment-card details are requested or stored.
+                    </p>
+                    <div class="form-check">
+                        {{ form.confirm_payment }}
+                        <label class="form-check-label"
+                               for="{{ form.confirm_payment.id_for_label }}">
+                            {{ form.confirm_payment.label }}
+                        </label>
+                    </div>
+                    <div class="text-danger small">
+                        {{ form.confirm_payment.errors }}
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-dark">
+                Complete simulated payment
+            </button>
+            <a href="{% url 'customer:cart' %}"
+               class="btn btn-outline-dark ms-2">
+                Return to cart
+            </a>
+        </form>
+    </section>
+
+    <aside class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h4">Final order summary</h2>
+
+                {% for line in cart_lines %}
+                    <article class="border-bottom py-3">
+                        <h3 class="h6 mb-1">
+                            {{ line.variant.product.name }}
+                        </h3>
+                        <p class="small text-muted mb-1">
+                            {{ line.variant.size }} / {{ line.variant.colour }}
+                        </p>
+                        <p class="small mb-1">
+                            {{ line.start_date|date:"Y-m-d" }} to
+                            {{ line.end_date|date:"Y-m-d" }} ·
+                            {{ line.rental_days }} day{{ line.rental_days|pluralize }}
+                        </p>
+                        <p class="small mb-1">
+                            {{ line.quantity }} ×
+                            SGD {{ line.daily_rate|floatformat:2 }}/day
+                        </p>
+                        <strong>
+                            SGD {{ line.line_total|floatformat:2 }}
+                        </strong>
+                    </article>
+                {% endfor %}
+
+                <div class="d-flex justify-content-between fs-5 fw-semibold mt-4">
+                    <span>Total</span>
+                    <span>SGD {{ cart_total|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

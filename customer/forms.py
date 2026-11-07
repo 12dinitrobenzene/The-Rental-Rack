@@ -185,3 +185,19 @@ class RentalSelectionForm(RentalPeriodForm):
 
 class CartUpdateForm(RentalPeriodForm):
     """Validate editable cart values without accepting any prices."""
+
+
+class CheckoutForm(forms.Form):
+    delivery_address = forms.CharField(
+        label="Delivery address",
+        widget=forms.Textarea(
+            attrs={"class": "form-control", "rows": 4}
+        ),
+    )
+    confirm_payment = forms.BooleanField(
+        label="Confirm simulated payment",
+        help_text="No payment-card details are required or stored.",
+        widget=forms.CheckboxInput(
+            attrs={"class": "form-check-input"}
+        ),
+    )

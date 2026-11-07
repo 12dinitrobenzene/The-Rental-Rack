@@ -46,6 +46,11 @@ urlpatterns = [
         name="cart_remove",
     ),
     path(
+        "checkout/",
+        views.CheckoutView.as_view(),
+        name="checkout",
+    ),
+    path(
         "account/",
         views.order_history,
         name="account",
