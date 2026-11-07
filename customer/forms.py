@@ -93,18 +93,7 @@ class CatalogueFilterForm(forms.Form):
         return cleaned_data
 
 
-class RentalSelectionForm(forms.Form):
-    variant_id = forms.ModelChoiceField(
-        queryset=ProductVariant.objects.none(),
-        widget=forms.HiddenInput(
-            attrs={"data-variant-input": ""}
-        ),
-        error_messages={
-            "required": "Please choose a colour and size.",
-            "invalid_choice": "That variant is not available.",
-        },
-    )
-
+class RentalPeriodForm(forms.Form):
     start_date = forms.DateField(
         label="Rental start",
         widget=forms.DateInput(
@@ -127,16 +116,9 @@ class RentalSelectionForm(forms.Form):
         ),
     )
 
-    def __init__(self, *args, product, **kwargs):
+    def __init__(self, *args, daily_rate, **kwargs):
         super().__init__(*args, **kwargs)
-        self.product = product
-
-        self.fields["variant_id"].queryset = (
-            product.variants.filter(
-                is_active=True,
-                total_quantity__gt=0,
-            )
-        )
+        self.daily_rate = daily_rate
 
         today = timezone.localdate().isoformat()
 
@@ -160,7 +142,7 @@ class RentalSelectionForm(forms.Form):
         if start and end and quantity is not None:
             try:
                 days, total = calculate_rental_totals(
-                    daily_rate=self.product.daily_rate,
+                    daily_rate=self.daily_rate,
                     quantity=quantity,
                     start_date=start,
                     end_date=end,
@@ -172,3 +154,34 @@ class RentalSelectionForm(forms.Form):
                 data["line_total"] = total
 
         return data
+
+
+class RentalSelectionForm(RentalPeriodForm):
+    variant_id = forms.ModelChoiceField(
+        queryset=ProductVariant.objects.none(),
+        widget=forms.HiddenInput(
+            attrs={"data-variant-input": ""}
+        ),
+        error_messages={
+            "required": "Please choose a colour and size.",
+            "invalid_choice": "That variant is not available.",
+        },
+    )
+
+    def __init__(self, *args, product, **kwargs):
+        super().__init__(
+            *args,
+            daily_rate=product.daily_rate,
+            **kwargs,
+        )
+        self.product = product
+        self.fields["variant_id"].queryset = (
+            product.variants.filter(
+                is_active=True,
+                total_quantity__gt=0,
+            )
+        )
+
+
+class CartUpdateForm(RentalPeriodForm):
+    """Validate editable cart values without accepting any prices."""

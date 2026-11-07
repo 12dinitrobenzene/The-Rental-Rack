@@ -1,6 +1,10 @@
+from datetime import date
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import Http404
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
@@ -10,8 +14,9 @@ from shop.models import Category, Product, ProductVariant, Vendor
 from shop.visibility import visible_products
 
 from .availability import available_quantity_by_day
-from .forms import CatalogueFilterForm, RentalSelectionForm
+from .forms import CartUpdateForm, CatalogueFilterForm, RentalSelectionForm
 from .models import RentalItem, RentalOrder
+from .rental_rules import calculate_rental_totals
 
 
 RENTAL_CART_SESSION_KEY = "rental_cart"
@@ -287,6 +292,144 @@ class AddToCartView(LoginRequiredMixin, View):
 
         messages.success(request, f"{product.name} was added to your cart.")
         return redirect("customer:product_detail", product_id=product.pk)
+
+
+def _get_cart_line(cart, line_index):
+    if line_index < 0 or line_index >= len(cart):
+        raise Http404("Cart line not found.")
+
+    return cart[line_index]
+
+
+class CartView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+
+    def get(self, request):
+        require_customer(request.user)
+        cart = request.session.get(RENTAL_CART_SESSION_KEY, [])
+        variant_ids = [line["variant_id"] for line in cart]
+        variants = {
+            variant.pk: variant
+            for variant in ProductVariant.objects.filter(pk__in=variant_ids)
+            .select_related("product", "product__vendor")
+        }
+
+        cart_lines = []
+        cart_total = Decimal("0.00")
+
+        for line_index, line in enumerate(cart):
+            variant = variants.get(line["variant_id"])
+
+            if variant is None:
+                continue
+
+            start_date = date.fromisoformat(line["start_date"])
+            end_date = date.fromisoformat(line["end_date"])
+            rental_days, line_total = calculate_rental_totals(
+                daily_rate=variant.product.daily_rate,
+                quantity=line["quantity"],
+                start_date=start_date,
+                end_date=end_date,
+            )
+            cart_total += line_total
+            cart_lines.append({
+                "line_index": line_index,
+                "variant": variant,
+                "start_date": start_date,
+                "end_date": end_date,
+                "rental_days": rental_days,
+                "quantity": line["quantity"],
+                "daily_rate": variant.product.daily_rate,
+                "line_total": line_total,
+                "update_form": CartUpdateForm(
+                    daily_rate=variant.product.daily_rate,
+                    prefix=f"line-{line_index}",
+                    initial={
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "quantity": line["quantity"],
+                    },
+                ),
+            })
+
+        return render(
+            request,
+            "customer/cart.html",
+            {
+                "cart_lines": cart_lines,
+                "cart_total": cart_total,
+            },
+        )
+
+
+class CartUpdateView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+    http_method_names = ["post"]
+
+    def post(self, request, line_index):
+        require_customer(request.user)
+        cart = request.session.get(RENTAL_CART_SESSION_KEY, [])
+        line = _get_cart_line(cart, line_index)
+        variant = get_object_or_404(
+            ProductVariant.objects.select_related("product"),
+            pk=line["variant_id"],
+        )
+        form = CartUpdateForm(
+            request.POST,
+            daily_rate=variant.product.daily_rate,
+            prefix=f"line-{line_index}",
+        )
+
+        if form.is_valid():
+            update = form.cleaned_data
+            availability = available_quantity_by_day(
+                variant=variant,
+                start_date=update["start_date"],
+                end_date=update["end_date"],
+            )
+            available_quantity = min(availability.values())
+
+            if update["quantity"] <= available_quantity:
+                cart[line_index] = {
+                    "variant_id": variant.pk,
+                    "quantity": update["quantity"],
+                    "start_date": update["start_date"].isoformat(),
+                    "end_date": update["end_date"].isoformat(),
+                }
+                request.session[RENTAL_CART_SESSION_KEY] = cart
+                messages.success(request, "Your cart was updated.")
+                return redirect("customer:cart")
+
+            messages.error(
+                request,
+                (
+                    f"Only {available_quantity} unit(s) are available "
+                    "for the entire selected period."
+                ),
+            )
+        else:
+            first_error = next(
+                error
+                for errors in form.errors.values()
+                for error in errors
+            )
+            messages.error(request, first_error)
+
+        return redirect("customer:cart")
+
+
+class CartRemoveView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+    http_method_names = ["post"]
+
+    def post(self, request, line_index):
+        require_customer(request.user)
+        cart = request.session.get(RENTAL_CART_SESSION_KEY, [])
+        _get_cart_line(cart, line_index)
+        cart.pop(line_index)
+        request.session[RENTAL_CART_SESSION_KEY] = cart
+        messages.success(request, "The rental item was removed from your cart.")
+        return redirect("customer:cart")
 
 
 def style_preferences(request):
