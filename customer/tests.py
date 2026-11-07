@@ -841,3 +841,162 @@ class RentalHistoryTests(TestCase):
             self.client.session["rental_cart"],
             cart,
         )
+
+
+class SessionRentalCartTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        customer_group, _ = Group.objects.get_or_create(name="Customer")
+        cls.customer = get_user_model().objects.create_user(
+            username="cart-customer",
+            password="test-password",
+        )
+        cls.customer.groups.add(customer_group)
+
+        cls.vendor = Vendor.objects.create(
+            name="Cart Vendor",
+            contact_email="cart@example.com",
+            approval_status=Vendor.ApprovalStatus.APPROVED,
+        )
+        cls.category = Category.objects.create(name="Cart Clothing")
+        cls.product = cls.create_product(
+            vendor=cls.vendor,
+            name="Cart Jacket",
+            sku="cart-jacket-m",
+        )
+
+        cls.other_vendor = Vendor.objects.create(
+            name="Other Cart Vendor",
+            contact_email="other-cart@example.com",
+            approval_status=Vendor.ApprovalStatus.APPROVED,
+        )
+        cls.other_product = cls.create_product(
+            vendor=cls.other_vendor,
+            name="Other Cart Jacket",
+            sku="other-cart-jacket-m",
+        )
+
+    @classmethod
+    def create_product(cls, *, vendor, name, sku):
+        product = Product.objects.create(
+            vendor=vendor,
+            category=cls.category,
+            name=name,
+            description="A cart test product.",
+            brand="Test",
+            daily_rate=Decimal("20.00"),
+            is_active=True,
+            is_published=True,
+        )
+        ProductVariant.objects.create(
+            product=product,
+            sku=sku,
+            size="M",
+            colour="Blue",
+            total_quantity=3,
+        )
+        return product
+
+    def setUp(self):
+        self.client.force_login(self.customer)
+
+    def add_product(self, product, *, start, end, quantity="1"):
+        variant = product.variants.get()
+        return self.client.post(
+            reverse("customer:cart_add", args=[product.pk]),
+            {
+                "variant_id": variant.pk,
+                "start_date": start.isoformat(),
+                "end_date": end.isoformat(),
+                "quantity": quantity,
+            },
+        )
+
+    def test_customer_can_add_a_valid_selection_to_the_session(self):
+        start = timezone.localdate() + timedelta(days=1)
+        response = self.add_product(
+            self.product,
+            start=start,
+            end=start + timedelta(days=2),
+            quantity="2",
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("customer:product_detail", args=[self.product.pk]),
+        )
+        self.assertEqual(
+            self.client.session["rental_cart"],
+            [{
+                "variant_id": self.product.variants.get().pk,
+                "quantity": 2,
+                "start_date": start.isoformat(),
+                "end_date": (start + timedelta(days=2)).isoformat(),
+            }],
+        )
+
+    def test_cart_lines_keep_their_own_rental_dates(self):
+        first_start = timezone.localdate() + timedelta(days=1)
+        second_start = timezone.localdate() + timedelta(days=5)
+
+        self.add_product(
+            self.product,
+            start=first_start,
+            end=first_start + timedelta(days=1),
+        )
+        self.add_product(
+            self.product,
+            start=second_start,
+            end=second_start + timedelta(days=2),
+        )
+
+        cart = self.client.session["rental_cart"]
+        self.assertEqual(len(cart), 2)
+        self.assertEqual(cart[0]["start_date"], first_start.isoformat())
+        self.assertEqual(cart[1]["start_date"], second_start.isoformat())
+        self.assertEqual(
+            cart[1]["end_date"],
+            (second_start + timedelta(days=2)).isoformat(),
+        )
+
+    def test_product_from_another_vendor_is_rejected(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(self.product, start=start, end=start)
+        original_cart = self.client.session["rental_cart"]
+
+        response = self.add_product(
+            self.other_product,
+            start=start,
+            end=start,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "customer:product_detail",
+                args=[self.other_product.pk],
+            ),
+        )
+        self.assertEqual(self.client.session["rental_cart"], original_cart)
+
+    def test_adding_to_cart_does_not_create_a_reservation(self):
+        start = timezone.localdate() + timedelta(days=1)
+
+        self.add_product(self.product, start=start, end=start)
+
+        self.assertEqual(RentalOrder.objects.count(), 0)
+        self.assertEqual(RentalItem.objects.count(), 0)
+
+    def test_anonymous_user_must_log_in_before_adding(self):
+        self.client.logout()
+        start = timezone.localdate() + timedelta(days=1)
+
+        response = self.add_product(self.product, start=start, end=start)
+
+        add_url = reverse("customer:cart_add", args=[self.product.pk])
+        self.assertRedirects(
+            response,
+            f"{reverse('accounts:login')}?next={add_url}",
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn("rental_cart", self.client.session)

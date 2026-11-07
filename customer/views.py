@@ -1,6 +1,9 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Prefetch, Q
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views import View
 
 from accounts.permissions import require_customer
 from shop.models import Category, Product, ProductVariant, Vendor
@@ -9,6 +12,9 @@ from shop.visibility import visible_products
 from .availability import available_quantity_by_day
 from .forms import CatalogueFilterForm, RentalSelectionForm
 from .models import RentalItem, RentalOrder
+
+
+RENTAL_CART_SESSION_KEY = "rental_cart"
 
 
 def catalogue(request):
@@ -201,6 +207,86 @@ def product_detail(request, product_id):
             "rental_result": rental_result,
         },
     )
+
+
+class AddToCartView(LoginRequiredMixin, View):
+    """Add one validated rental selection to the session cart."""
+
+    login_url = "accounts:login"
+    http_method_names = ["post"]
+
+    def post(self, request, product_id):
+        require_customer(request.user)
+
+        product = get_object_or_404(
+            visible_products(),
+            pk=product_id,
+        )
+        form = RentalSelectionForm(request.POST, product=product)
+
+        if not form.is_valid():
+            first_error = next(
+                error
+                for errors in form.errors.values()
+                for error in errors
+            )
+            messages.error(request, first_error)
+            return redirect("customer:product_detail", product_id=product.pk)
+
+        selection = form.cleaned_data
+        variant = selection["variant_id"]
+        availability = available_quantity_by_day(
+            variant=variant,
+            start_date=selection["start_date"],
+            end_date=selection["end_date"],
+        )
+        available_quantity = min(availability.values())
+
+        if selection["quantity"] > available_quantity:
+            messages.error(
+                request,
+                (
+                    f"Only {available_quantity} unit(s) are available "
+                    "for the entire selected period."
+                ),
+            )
+            return redirect("customer:product_detail", product_id=product.pk)
+
+        cart = request.session.get(RENTAL_CART_SESSION_KEY, [])
+
+        if cart:
+            existing_variant = (
+                ProductVariant.objects.select_related("product")
+                .filter(pk=cart[0].get("variant_id"))
+                .first()
+            )
+
+            if (
+                existing_variant
+                and existing_variant.product.vendor_id != product.vendor_id
+            ):
+                messages.error(
+                    request,
+                    (
+                        "Your cart can contain rentals from only one vendor. "
+                        "Empty the cart before choosing another vendor."
+                    ),
+                )
+                return redirect(
+                    "customer:product_detail",
+                    product_id=product.pk,
+                )
+
+        cart.append({
+            "variant_id": variant.pk,
+            "quantity": selection["quantity"],
+            "start_date": selection["start_date"].isoformat(),
+            "end_date": selection["end_date"].isoformat(),
+        })
+        request.session[RENTAL_CART_SESSION_KEY] = cart
+
+        messages.success(request, f"{product.name} was added to your cart.")
+        return redirect("customer:product_detail", product_id=product.pk)
 
 
 def style_preferences(request):

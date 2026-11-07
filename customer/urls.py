@@ -10,6 +10,11 @@ urlpatterns = [
     path("catalogue/", views.catalogue, name="catalogue"),
     path("products/<int:product_id>/", views.product_detail, name="product_detail"),
     path(
+        "products/<int:product_id>/cart/add/",
+        views.AddToCartView.as_view(),
+        name="cart_add",
+    ),
+    path(
         "orders/",
         views.order_history,
         name="order_history",
