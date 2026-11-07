@@ -24,12 +24,28 @@
                 <p class="mb-0">
                     SGD {{ order.total_amount|floatformat:2 }}
                 </p>
+
+                <ul class="list-unstyled mt-3 mb-0">
+                    {% for item in order.items.all %}
+                        <li class="mb-2">
+                            <strong>{{ item.product_name_snapshot }}</strong>
+                            <span class="badge text-bg-secondary">
+                                {{ item.get_status_display }}
+                            </span>
+                            <br>
+                            <span class="text-muted">
+                                Rental starts {{ item.rental_start_date|date:"d M Y" }}
+                                · Expected return {{ item.rental_end_date|date:"d M Y" }}
+                            </span>
+                        </li>
+                    {% endfor %}
+                </ul>
             </div>
 
             <div>
                 <a class="btn btn-outline-dark"
                    href="{% url 'customer:order_detail' order.pk %}">
-                    View order
+                    View tracking
                 </a>
             </div>
         </div>

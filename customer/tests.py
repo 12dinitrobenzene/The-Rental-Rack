@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.urls import reverse
 
 from customer.forms import RentalSelectionForm
+from shop.availability import available_quantity_by_day
 from shop.models import (
     Category,
     Product,
@@ -673,6 +674,10 @@ class RentalHistoryTests(TestCase):
         return [
             reverse("customer:order_history"),
             reverse("customer:account"),
+            reverse(
+                "customer:order_cancel",
+                kwargs={"order_id": self.order.pk},
+            ),
             *self.order_urls(self.order),
         ]
 
@@ -744,6 +749,178 @@ class RentalHistoryTests(TestCase):
                 self.assertNotContains(
                     response, "Private delivery address"
                 )
+
+    def test_tracking_pages_label_item_status_and_expected_return(self):
+        self.client.force_login(self.customer)
+
+        for url in (
+            reverse("customer:order_history"),
+            reverse(
+                "customer:order_detail",
+                kwargs={"order_id": self.order.pk},
+            ),
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+
+                self.assertContains(response, "Confirmed")
+                self.assertContains(response, "Rental starts")
+                self.assertContains(response, "Expected return")
+                self.assertContains(response, "10 Nov 2026")
+                self.assertContains(response, "12 Nov 2026")
+
+    def test_cancellable_order_shows_cancel_action(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(
+            reverse(
+                "customer:order_detail",
+                kwargs={"order_id": self.order.pk},
+            )
+        )
+
+        self.assertTrue(response.context["can_cancel"])
+        self.assertContains(response, "Cancel order")
+
+    def test_customer_can_cancel_entire_order_before_dispatch(self):
+        second_item = RentalItem.objects.create(
+            order=self.order,
+            variant=self.variant,
+            product_name_snapshot="Second Snapshot Jacket",
+            daily_rate_snapshot=Decimal("12.00"),
+            quantity=1,
+            rental_start_date=date(2026, 11, 15),
+            rental_end_date=date(2026, 11, 16),
+            rental_days=2,
+            line_total=Decimal("24.00"),
+            status=RentalItem.Status.PREPARING,
+        )
+        self.item.status = RentalItem.Status.PREPARING
+        self.item.save(update_fields=["status"])
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse(
+                "customer:order_cancel",
+                kwargs={"order_id": self.order.pk},
+            )
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "customer:order_detail",
+                kwargs={"order_id": self.order.pk},
+            ),
+        )
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        second_item.refresh_from_db()
+        self.assertEqual(
+            self.order.payment_status,
+            RentalOrder.PaymentStatus.REFUNDED,
+        )
+        self.assertEqual(self.item.status, RentalItem.Status.CANCELLED)
+        self.assertEqual(second_item.status, RentalItem.Status.CANCELLED)
+
+    def test_dispatched_item_blocks_the_whole_cancellation(self):
+        self.item.status = RentalItem.Status.DISPATCHED
+        self.item.save(update_fields=["status"])
+        other_item = RentalItem.objects.create(
+            order=self.order,
+            variant=self.variant,
+            product_name_snapshot="Still Confirmed Jacket",
+            daily_rate_snapshot=Decimal("12.00"),
+            quantity=1,
+            rental_start_date=date(2026, 11, 15),
+            rental_end_date=date(2026, 11, 16),
+            rental_days=2,
+            line_total=Decimal("24.00"),
+            status=RentalItem.Status.CONFIRMED,
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse(
+                "customer:order_cancel",
+                kwargs={"order_id": self.order.pk},
+            )
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "customer:order_detail",
+                kwargs={"order_id": self.order.pk},
+            ),
+        )
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        other_item.refresh_from_db()
+        self.assertEqual(
+            self.order.payment_status,
+            RentalOrder.PaymentStatus.PAID,
+        )
+        self.assertEqual(self.item.status, RentalItem.Status.DISPATCHED)
+        self.assertEqual(other_item.status, RentalItem.Status.CONFIRMED)
+
+    def test_cancelled_order_releases_rental_availability(self):
+        before = available_quantity_by_day(
+            variant=self.variant,
+            start_date=self.item.rental_start_date,
+            end_date=self.item.rental_end_date,
+        )
+        self.client.force_login(self.customer)
+
+        self.client.post(
+            reverse(
+                "customer:order_cancel",
+                kwargs={"order_id": self.order.pk},
+            )
+        )
+
+        after = available_quantity_by_day(
+            variant=self.variant,
+            start_date=self.item.rental_start_date,
+            end_date=self.item.rental_end_date,
+        )
+        for rental_date in before:
+            with self.subTest(rental_date=rental_date):
+                self.assertEqual(
+                    after[rental_date],
+                    before[rental_date] + self.item.quantity,
+                )
+
+    def test_customer_cannot_cancel_another_customers_order(self):
+        self.client.force_login(self.other_customer)
+
+        response = self.client.post(
+            reverse(
+                "customer:order_cancel",
+                kwargs={"order_id": self.order.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.order.refresh_from_db()
+        self.item.refresh_from_db()
+        self.assertEqual(
+            self.order.payment_status,
+            RentalOrder.PaymentStatus.PAID,
+        )
+        self.assertEqual(self.item.status, RentalItem.Status.CONFIRMED)
+
+    def test_cancellation_endpoint_rejects_get_requests(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(
+            reverse(
+                "customer:order_cancel",
+                kwargs={"order_id": self.order.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 405)
 
     def test_another_customers_order_returns_404(self):
         self.client.force_login(self.customer)

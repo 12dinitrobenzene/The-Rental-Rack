@@ -25,6 +25,11 @@ urlpatterns = [
         name="order_detail",
     ),
     path(
+        "orders/<int:order_id>/cancel/",
+        views.OrderCancelView.as_view(),
+        name="order_cancel",
+    ),
+    path(
         "orders/<int:order_id>/confirmation/",
         views.order_confirmation,
         name="order_confirmation",
