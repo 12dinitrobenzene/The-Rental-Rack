@@ -11,18 +11,24 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
 from accounts.permissions import require_customer
-from shop.models import Category, Product, ProductVariant, Vendor
+from shop.availability import available_quantity_by_day
+from shop.models import (
+    Category,
+    Product,
+    ProductVariant,
+    RentalItem,
+    RentalOrder,
+    Vendor,
+)
+from shop.rental_rules import calculate_rental_totals
 from shop.visibility import visible_products
 
-from .availability import available_quantity_by_day
 from .forms import (
     CartUpdateForm,
     CatalogueFilterForm,
     CheckoutForm,
     RentalSelectionForm,
 )
-from .models import RentalItem, RentalOrder
-from .rental_rules import calculate_rental_totals
 
 
 RENTAL_CART_SESSION_KEY = "rental_cart"

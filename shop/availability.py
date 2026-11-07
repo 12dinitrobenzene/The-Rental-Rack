@@ -23,7 +23,7 @@ def available_quantity_by_day(*, variant, start_date, end_date):
                 rental_start_date__lte=end_date,
                 rental_end_date__gte=start_date,
             )
-            | Q(status=RentalItem.Status.OVERDUE)
+            | Q(status__in=RentalItem.OPEN_ENDED_RESERVING_STATUSES)
         )
         .only(
             "status",
@@ -41,7 +41,7 @@ def available_quantity_by_day(*, variant, start_date, end_date):
             item.quantity
             for item in bookings
             if (
-                item.status == RentalItem.Status.OVERDUE
+                item.status in RentalItem.OPEN_ENDED_RESERVING_STATUSES
                 or item.rental_start_date <= day <= item.rental_end_date
             )
         )

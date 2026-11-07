@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from shop.models import ProductVariant
 
-from .rental_rules import calculate_rental_totals
+from shop.rental_rules import calculate_rental_totals
 
 
 class CatalogueFilterForm(forms.Form):
