@@ -1155,3 +1155,165 @@ class SessionRentalCartTests(TestCase):
             f"{reverse('accounts:login')}?next={cart_url}",
             fetch_redirect_response=False,
         )
+
+    def test_checkout_page_shows_summary_without_card_fields(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(
+            self.product,
+            start=start,
+            end=start + timedelta(days=1),
+            quantity="2",
+        )
+
+        response = self.client.get(reverse("customer:checkout"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(response.context["form"].fields),
+            {"delivery_address", "confirm_payment"},
+        )
+        self.assertEqual(response.context["cart_total"], Decimal("80.00"))
+        self.assertContains(response, "Final order summary")
+        self.assertContains(response, "No real payment-card details")
+
+    def test_successful_checkout_creates_snapshots_and_clears_cart(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(
+            self.product,
+            start=start,
+            end=start + timedelta(days=1),
+            quantity="2",
+        )
+
+        response = self.client.post(
+            reverse("customer:checkout"),
+            {
+                "delivery_address": "10 Checkout Street",
+                "confirm_payment": "on",
+                "daily_rate": "0.01",
+                "total_amount": "0.01",
+                "card_number": "not-stored",
+            },
+        )
+
+        order = RentalOrder.objects.get()
+        item = order.items.get()
+        self.assertRedirects(
+            response,
+            reverse("customer:order_confirmation", args=[order.pk]),
+        )
+        self.assertEqual(order.customer, self.customer)
+        self.assertEqual(order.vendor, self.vendor)
+        self.assertEqual(order.delivery_address, "10 Checkout Street")
+        self.assertEqual(
+            order.payment_status,
+            RentalOrder.PaymentStatus.PAID,
+        )
+        self.assertEqual(order.total_amount, Decimal("80.00"))
+        self.assertEqual(item.product_name_snapshot, "Cart Jacket")
+        self.assertEqual(item.daily_rate_snapshot, Decimal("20.00"))
+        self.assertEqual(item.quantity, 2)
+        self.assertEqual(item.rental_days, 2)
+        self.assertEqual(item.line_total, Decimal("80.00"))
+        self.assertEqual(item.status, RentalItem.Status.CONFIRMED)
+        self.assertEqual(self.client.session["rental_cart"], [])
+
+    def test_unconfirmed_payment_keeps_cart_and_creates_no_order(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(self.product, start=start, end=start)
+        original_cart = self.client.session["rental_cart"]
+
+        response = self.client.post(
+            reverse("customer:checkout"),
+            {"delivery_address": "10 Checkout Street"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(
+            response.context["form"],
+            "confirm_payment",
+            "This field is required.",
+        )
+        self.assertEqual(RentalOrder.objects.count(), 0)
+        self.assertEqual(RentalItem.objects.count(), 0)
+        self.assertEqual(self.client.session["rental_cart"], original_cart)
+
+    def test_checkout_rechecks_combined_overlapping_cart_quantity(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(
+            self.product,
+            start=start,
+            end=start,
+            quantity="2",
+        )
+        self.add_product(
+            self.product,
+            start=start,
+            end=start,
+            quantity="2",
+        )
+        original_cart = self.client.session["rental_cart"]
+
+        response = self.client.post(
+            reverse("customer:checkout"),
+            {
+                "delivery_address": "10 Checkout Street",
+                "confirm_payment": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("customer:cart"))
+        self.assertEqual(RentalOrder.objects.count(), 0)
+        self.assertEqual(RentalItem.objects.count(), 0)
+        self.assertEqual(self.client.session["rental_cart"], original_cart)
+
+    def test_checkout_rechecks_rentals_created_after_cart_addition(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(
+            self.product,
+            start=start,
+            end=start,
+            quantity="2",
+        )
+        original_cart = self.client.session["rental_cart"]
+        existing_order = RentalOrder.objects.create(
+            customer=self.customer,
+            vendor=self.vendor,
+            delivery_address="Existing rental address",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=Decimal("40.00"),
+        )
+        existing_item = RentalItem(
+            order=existing_order,
+            variant=self.product.variants.get(),
+            product_name_snapshot=self.product.name,
+            daily_rate_snapshot=Decimal("20.00"),
+            quantity=2,
+            rental_start_date=start,
+            rental_end_date=start,
+            rental_days=1,
+            line_total=Decimal("40.00"),
+        )
+        existing_item.full_clean()
+        existing_item.save()
+        order_count = RentalOrder.objects.count()
+        item_count = RentalItem.objects.count()
+
+        response = self.client.post(
+            reverse("customer:checkout"),
+            {
+                "delivery_address": "10 Checkout Street",
+                "confirm_payment": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("customer:cart"))
+        self.assertEqual(RentalOrder.objects.count(), order_count)
+        self.assertEqual(RentalItem.objects.count(), item_count)
+        self.assertEqual(self.client.session["rental_cart"], original_cart)
+
+    def test_empty_cart_cannot_be_checked_out(self):
+        response = self.client.get(reverse("customer:checkout"))
+
+        self.assertRedirects(response, reverse("customer:cart"))
+        self.assertEqual(RentalOrder.objects.count(), 0)
