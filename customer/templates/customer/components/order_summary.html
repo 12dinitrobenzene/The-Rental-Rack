@@ -35,20 +35,29 @@
                 {{ item.variant.colour }}
             </p>
 
-            <p class="mb-2">
-                {{ item.rental_start_date|date:"d M Y" }}
-                to
-                {{ item.rental_end_date|date:"d M Y" }}
-                · {{ item.rental_days }} day(s)
-            </p>
+            <dl class="row mb-2">
+                <dt class="col-sm-4">Fulfilment status</dt>
+                <dd class="col-sm-8">
+                    <span class="badge text-bg-secondary">
+                        {{ item.get_status_display }}
+                    </span>
+                </dd>
+
+                <dt class="col-sm-4">Rental starts</dt>
+                <dd class="col-sm-8">
+                    {{ item.rental_start_date|date:"d M Y" }}
+                </dd>
+
+                <dt class="col-sm-4">Expected return</dt>
+                <dd class="col-sm-8">
+                    {{ item.rental_end_date|date:"d M Y" }}
+                    · {{ item.rental_days }} day(s)
+                </dd>
+            </dl>
 
             <p class="mb-2">
                 Quantity: {{ item.quantity }}
                 · SGD {{ item.daily_rate_snapshot|floatformat:2 }}/day
-            </p>
-
-            <p class="mb-2">
-                Status: {{ item.get_status_display }}
             </p>
 
             <strong>

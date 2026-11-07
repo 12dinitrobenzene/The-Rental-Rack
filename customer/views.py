@@ -32,6 +32,10 @@ from .forms import (
 
 
 RENTAL_CART_SESSION_KEY = "rental_cart"
+CANCELLABLE_RENTAL_STATUSES = {
+    RentalItem.Status.CONFIRMED,
+    RentalItem.Status.PREPARING,
+}
 
 
 def catalogue(request):
@@ -602,6 +606,18 @@ def _orders_for_customer(user):
     )
 
 
+def _can_cancel_order(order, items=None):
+    order_items = list(items if items is not None else order.items.all())
+    return (
+        order.payment_status == RentalOrder.PaymentStatus.PAID
+        and bool(order_items)
+        and all(
+            item.status in CANCELLABLE_RENTAL_STATUSES
+            for item in order_items
+        )
+    )
+
+
 @login_required(login_url="accounts:login")
 def order_history(request):
     require_customer(request.user)
@@ -630,8 +646,59 @@ def order_detail(request, order_id):
     return render(
         request,
         "customer/order_detail.html",
-        {"order": order},
+        {
+            "order": order,
+            "can_cancel": _can_cancel_order(order),
+        },
     )
+
+
+class OrderCancelView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            require_customer(request.user)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, order_id):
+        with transaction.atomic():
+            order = get_object_or_404(
+                RentalOrder.objects.select_for_update(),
+                pk=order_id,
+                customer=request.user,
+            )
+            items = list(
+                RentalItem.objects.select_for_update()
+                .filter(order=order)
+                .order_by("pk")
+            )
+
+            if not _can_cancel_order(order, items):
+                messages.error(
+                    request,
+                    "This order can no longer be cancelled.",
+                )
+                return redirect(
+                    "customer:order_detail",
+                    order_id=order.pk,
+                )
+
+            for item in items:
+                item.transition_to(RentalItem.Status.CANCELLED)
+
+            RentalItem.objects.bulk_update(items, ["status"])
+            order.payment_status = RentalOrder.PaymentStatus.REFUNDED
+            order.save(update_fields=["payment_status"])
+
+        messages.success(
+            request,
+            "Your order was cancelled and the simulated payment was refunded.",
+        )
+        return redirect(
+            "customer:order_detail",
+            order_id=order.pk,
+        )
 
 
 @login_required(login_url="accounts:login")

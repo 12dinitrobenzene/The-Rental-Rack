@@ -10,4 +10,31 @@
 <h1 class="my-4">Order #{{ order.pk }}</h1>
 
 {% include "customer/components/order_summary.html" with order=order only %}
+
+{% if can_cancel %}
+    <section class="border rounded p-4 mt-4" aria-labelledby="cancel-order-heading">
+        <h2 class="h4" id="cancel-order-heading">Cancel this order</h2>
+        <p class="text-muted">
+            You can cancel the entire order before any item is dispatched.
+            The simulated payment will be refunded.
+        </p>
+
+        <form method="post"
+              action="{% url 'customer:order_cancel' order.pk %}"
+              onsubmit="return confirm('Cancel this entire rental order?');">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger" type="submit">
+                Cancel order
+            </button>
+        </form>
+    </section>
+{% elif order.payment_status == "Refunded" %}
+    <p class="alert alert-secondary mt-4 mb-0">
+        This order was cancelled and its simulated payment was refunded.
+    </p>
+{% elif order.payment_status == "Paid" %}
+    <p class="alert alert-light border mt-4 mb-0">
+        Cancellation is no longer available because fulfilment has progressed.
+    </p>
+{% endif %}
 {% endblock %}
