@@ -105,7 +105,7 @@
             <hr>
 
             <form method="post"
-                  action="{% url 'customer:product_detail' product.pk %}"
+                  action="{% url 'customer:cart_add' product.pk %}"
                   data-rental-form
                   novalidate>
 
@@ -228,8 +228,13 @@
             </p>
 
             <button type="submit" class="btn btn-dark">
-                Check availability
+                Add to cart
             </button>
+
+            <p class="small text-muted mt-3 mb-0">
+                Adding an item to your cart does not reserve stock.
+                Availability will be checked again at checkout.
+            </p>
 
             {% if rental_result %}
                 <div class="alert alert-success mt-3"
