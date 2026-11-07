@@ -1,13 +1,27 @@
+from datetime import date
+from decimal import Decimal
+from tempfile import TemporaryDirectory
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from tempfile import TemporaryDirectory
 
 from accounts.models import VendorEmployee
 from accounts.roles import VENDOR_EMPLOYEE_GROUP
-from shop.models import Category, Product, ProductImage, ProductVariant, Vendor
+from shop.models import (
+    Category,
+    Product,
+    ProductImage,
+    ProductVariant,
+    RentalItem,
+    RentalOrder,
+    RentalReturn,
+    RentalSettlement,
+    ReturnInspection,
+    Vendor,
+)
 from vendor_portal.forms import ProductForm, ProductImageForm, ProductVariantForm
 
 
@@ -355,3 +369,258 @@ class EmployeeHomeTests(TestCase):
     def test_variant_and_image_forms_do_not_expose_a_product_field(self):
         self.assertNotIn("product", ProductVariantForm.Meta.fields)
         self.assertNotIn("product", ProductImageForm.Meta.fields)
+
+
+class RentalSettlementWorkflowTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        employee_group, _ = Group.objects.get_or_create(
+            name=VENDOR_EMPLOYEE_GROUP
+        )
+        User = get_user_model()
+        cls.employee_user = User.objects.create_user(
+            username="settlement-employee",
+            password="test-password",
+        )
+        cls.employee_user.groups.add(employee_group)
+        cls.customer = User.objects.create_user(
+            username="settlement-customer",
+            password="test-password",
+        )
+        cls.vendor = Vendor.objects.create(
+            name="Settlement Vendor",
+            contact_email="settlement@example.com",
+        )
+        cls.other_vendor = Vendor.objects.create(
+            name="Other Settlement Vendor",
+            contact_email="other-settlement@example.com",
+        )
+        cls.employee = VendorEmployee.objects.create(
+            user=cls.employee_user,
+            vendor=cls.vendor,
+        )
+        category = Category.objects.create(name="Settlement Clothing")
+        product = Product.objects.create(
+            vendor=cls.vendor,
+            category=category,
+            name="Settlement Jacket",
+            description="Settlement test product.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+        )
+        cls.variant = ProductVariant.objects.create(
+            product=product,
+            sku="settlement-jacket-m",
+            size="M",
+            colour="Blue",
+            total_quantity=2,
+        )
+        cls.order = RentalOrder.objects.create(
+            customer=cls.customer,
+            vendor=cls.vendor,
+            delivery_address="1 Settlement Street",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=Decimal("100.00"),
+        )
+        cls.item = RentalItem.objects.create(
+            order=cls.order,
+            variant=cls.variant,
+            product_name_snapshot="Settlement Jacket",
+            daily_rate_snapshot=Decimal("10.00"),
+            commission_rate_snapshot=Decimal("0.2000"),
+            quantity=2,
+            rental_start_date=date(2026, 11, 1),
+            rental_end_date=date(2026, 11, 5),
+            rental_days=5,
+            line_total=Decimal("100.00"),
+            status=RentalItem.Status.RETURNED,
+        )
+        cls.rental_return = RentalReturn.objects.create(
+            rental_item=cls.item,
+            returned_on=date(2026, 11, 6),
+            recorded_by=cls.employee,
+        )
+        cls.inspection = ReturnInspection.objects.create(
+            rental_return=cls.rental_return,
+            condition=ReturnInspection.Condition.READY,
+            inspected_by=cls.employee,
+        )
+
+        other_product = Product.objects.create(
+            vendor=cls.other_vendor,
+            category=category,
+            name="Other Settlement Jacket",
+            description="Another vendor's product.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+        )
+        other_variant = ProductVariant.objects.create(
+            product=other_product,
+            sku="other-settlement-jacket-m",
+            size="M",
+            colour="Black",
+            total_quantity=1,
+        )
+        other_order = RentalOrder.objects.create(
+            customer=cls.customer,
+            vendor=cls.other_vendor,
+            delivery_address="2 Settlement Street",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=Decimal("10.00"),
+        )
+        cls.other_item = RentalItem.objects.create(
+            order=other_order,
+            variant=other_variant,
+            product_name_snapshot="Other Settlement Jacket",
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=date(2026, 11, 1),
+            rental_end_date=date(2026, 11, 1),
+            rental_days=1,
+            line_total=Decimal("10.00"),
+            status=RentalItem.Status.RETURNED,
+        )
+
+    def detail_url(self, item=None):
+        return reverse(
+            "vendor_portal:rental_detail",
+            args=[(item or self.item).pk],
+        )
+
+    def complete_url(self, item=None):
+        return reverse(
+            "vendor_portal:rental_complete",
+            args=[(item or self.item).pk],
+        )
+
+    def test_employee_can_open_own_rental_and_see_completion_action(self):
+        self.client.force_login(self.employee_user)
+
+        response = self.client.get(self.detail_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Settlement Jacket")
+        self.assertContains(response, "Ready for reuse")
+        self.assertContains(response, "Complete and record settlement")
+
+    def test_employee_workspace_lists_only_own_vendor_rentals(self):
+        self.client.force_login(self.employee_user)
+
+        response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertContains(response, "Settlement Jacket")
+        self.assertNotContains(response, "Other Settlement Jacket")
+
+    def test_completion_creates_exact_20_80_settlement(self):
+        self.client.force_login(self.employee_user)
+
+        response = self.client.post(self.complete_url())
+
+        self.assertRedirects(response, self.detail_url())
+        self.item.refresh_from_db()
+        settlement = RentalSettlement.objects.get(rental_item=self.item)
+        self.assertEqual(self.item.status, RentalItem.Status.COMPLETED)
+        self.assertEqual(
+            settlement.commission_rate_snapshot,
+            Decimal("0.2000"),
+        )
+        self.assertEqual(settlement.platform_amount, Decimal("20.00"))
+        self.assertEqual(settlement.vendor_amount, Decimal("80.00"))
+
+    def test_repeated_completion_does_not_duplicate_settlement(self):
+        self.client.force_login(self.employee_user)
+
+        self.client.post(self.complete_url())
+        self.client.post(self.complete_url())
+
+        self.assertEqual(
+            RentalSettlement.objects.filter(rental_item=self.item).count(),
+            1,
+        )
+
+    def test_settlement_is_displayed_as_read_only_simulation(self):
+        self.client.force_login(self.employee_user)
+        self.client.post(self.complete_url())
+
+        response = self.client.get(self.detail_url())
+
+        for text in (
+            "Simulated settlement",
+            "No real funds were transferred",
+            "20%",
+            "SGD 20.00",
+            "80%",
+            "SGD 80.00",
+        ):
+            self.assertContains(response, text)
+        self.assertNotContains(response, "Complete and record settlement")
+
+    def test_cancelled_item_produces_no_settlement(self):
+        self.item.status = RentalItem.Status.CANCELLED
+        self.item.save(update_fields=["status"])
+        self.client.force_login(self.employee_user)
+
+        response = self.client.post(self.complete_url())
+
+        self.assertRedirects(response, self.detail_url())
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, RentalItem.Status.CANCELLED)
+        self.assertFalse(
+            RentalSettlement.objects.filter(rental_item=self.item).exists()
+        )
+
+    def test_unresolved_inspection_produces_no_settlement(self):
+        self.inspection.condition = ReturnInspection.Condition.CLEANING
+        self.inspection.save(update_fields=["condition"])
+        self.client.force_login(self.employee_user)
+
+        response = self.client.post(self.complete_url())
+
+        self.assertRedirects(response, self.detail_url())
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, RentalItem.Status.RETURNED)
+        self.assertFalse(
+            RentalSettlement.objects.filter(rental_item=self.item).exists()
+        )
+
+    def test_employee_cannot_access_another_vendors_rental(self):
+        self.client.force_login(self.employee_user)
+
+        detail_response = self.client.get(self.detail_url(self.other_item))
+        complete_response = self.client.post(
+            self.complete_url(self.other_item)
+        )
+
+        self.assertEqual(detail_response.status_code, 404)
+        self.assertEqual(complete_response.status_code, 404)
+        self.assertFalse(
+            RentalSettlement.objects.filter(
+                rental_item=self.other_item
+            ).exists()
+        )
+
+    def test_non_employee_cannot_view_or_complete_rental(self):
+        self.client.force_login(self.customer)
+
+        detail_response = self.client.get(self.detail_url())
+        complete_response = self.client.post(self.complete_url())
+
+        self.assertEqual(detail_response.status_code, 403)
+        self.assertEqual(complete_response.status_code, 403)
+
+    def test_completion_endpoint_rejects_get_requests(self):
+        self.client.force_login(self.employee_user)
+
+        response = self.client.get(self.complete_url())
+
+        self.assertEqual(response.status_code, 405)
+
+    def test_anonymous_user_is_redirected_from_rental_pages(self):
+        for url, method in (
+            (self.detail_url(), self.client.get),
+            (self.complete_url(), self.client.post),
+        ):
+            with self.subTest(url=url):
+                response = method(url)
+                self.assertEqual(response.status_code, 302)
+                self.assertIn(reverse("accounts:login"), response.url)

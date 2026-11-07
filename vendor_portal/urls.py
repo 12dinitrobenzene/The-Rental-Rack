@@ -7,6 +7,16 @@ app_name = "vendor_portal"
 
 urlpatterns = [
     path("", views.employee_home, name="home"),
+    path(
+        "rentals/<int:item_id>/",
+        views.employee_rental_detail,
+        name="rental_detail",
+    ),
+    path(
+        "rentals/<int:item_id>/complete/",
+        views.CompleteRentalView.as_view(),
+        name="rental_complete",
+    ),
     path("products/add/", views.employee_product_create, name="product_create"),
     path(
         "products/<int:product_id>/",

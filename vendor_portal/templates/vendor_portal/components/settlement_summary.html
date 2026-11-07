@@ -1,0 +1,27 @@
+<section class="border rounded p-4 mt-4" aria-labelledby="settlement-heading">
+    <p class="text-success small text-uppercase mb-1">Recorded</p>
+    <h2 class="h4" id="settlement-heading">Simulated settlement</h2>
+    <p class="text-muted">
+        This is an accounting simulation. No real funds were transferred.
+    </p>
+
+    <dl class="row mb-0">
+        <dt class="col-sm-5">Gross rental amount</dt>
+        <dd class="col-sm-7">SGD {{ settlement.rental_item.line_total|floatformat:2 }}</dd>
+
+        <dt class="col-sm-5">Platform commission</dt>
+        <dd class="col-sm-7">
+            {{ settlement.platform_percentage|floatformat:0 }}%
+            · SGD {{ settlement.platform_amount|floatformat:2 }}
+        </dd>
+
+        <dt class="col-sm-5">Vendor payout</dt>
+        <dd class="col-sm-7">
+            {{ settlement.vendor_percentage|floatformat:0 }}%
+            · SGD {{ settlement.vendor_amount|floatformat:2 }}
+        </dd>
+
+        <dt class="col-sm-5">Recorded on</dt>
+        <dd class="col-sm-7">{{ settlement.created_at|date:"d M Y, H:i" }}</dd>
+    </dl>
+</section>

@@ -12,6 +12,9 @@
     <a class="btn btn-dark" href="{% url 'vendor_portal:product_create' %}">
         <i class="bi bi-plus-lg" aria-hidden="true"></i> Add product
     </a>
+    <a class="btn btn-outline-dark" href="#rental-fulfilment">
+        Rental fulfilment
+    </a>
     {% if employee.is_vendor_admin %}
         <a class="btn btn-outline-dark" href="{% url 'accounts:vendor_team' %}">
             Manage team
@@ -66,6 +69,63 @@
                     </td>
                 </tr>
         {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="mt-5" id="rental-fulfilment" aria-labelledby="rental-fulfilment-heading">
+    <div class="mb-3">
+        <p class="text-muted small text-uppercase mb-1">Rental operations</p>
+        <h2 class="h3 mb-1" id="rental-fulfilment-heading">Rental fulfilment</h2>
+        <p class="text-muted mb-0">View item-level progress and simulated settlements.</p>
+    </div>
+
+    <div class="table-responsive border rounded">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Rental item</th>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Rental dates</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Settlement</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in rental_items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.product_name_snapshot }}</strong>
+                            <div class="small text-muted">Item #{{ item.pk }}</div>
+                        </td>
+                        <td>{{ item.order.customer.username }}</td>
+                        <td>
+                            {{ item.rental_start_date|date:"d M Y" }}–{{ item.rental_end_date|date:"d M Y" }}
+                        </td>
+                        <td><span class="badge text-bg-secondary">{{ item.get_status_display }}</span></td>
+                        <td>
+                            {% if item.settlement %}
+                                <span class="badge text-bg-success">Recorded</span>
+                            {% else %}
+                                <span class="text-muted">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-dark"
+                               href="{% url 'vendor_portal:rental_detail' item.pk %}">
+                                View rental
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            No rental items yet.
+                        </td>
+                    </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
