@@ -32,18 +32,12 @@ urlpatterns = [
     path("preferences/", views.style_preferences, name="style_preferences"),
     path(
         "cart/",
-        views.CartView.as_view(),
+        views.customer_placeholder,
+        {
+            "title": "Your cart",
+            "message": "Your selected rental items will appear here.",
+        },
         name="cart",
-    ),
-    path(
-        "cart/<int:line_index>/update/",
-        views.CartUpdateView.as_view(),
-        name="cart_update",
-    ),
-    path(
-        "cart/<int:line_index>/remove/",
-        views.CartRemoveView.as_view(),
-        name="cart_remove",
     ),
     path(
         "account/",
