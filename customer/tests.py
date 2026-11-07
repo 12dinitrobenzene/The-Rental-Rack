@@ -10,8 +10,14 @@ from django.utils import timezone
 from django.urls import reverse
 
 from customer.forms import RentalSelectionForm
-from customer.models import RentalItem, RentalOrder
-from shop.models import Category, Product, ProductVariant, Vendor
+from shop.models import (
+    Category,
+    Product,
+    ProductVariant,
+    RentalItem,
+    RentalOrder,
+    Vendor,
+)
 
 
 class RentalItemValidationTests(TestCase):
