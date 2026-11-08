@@ -18,6 +18,16 @@ urlpatterns = [
         name="rental_transition",
     ),
     path(
+        "rentals/<int:item_id>/return/",
+        views.employee_record_return,
+        name="rental_return",
+    ),
+    path(
+        "rentals/<int:item_id>/inspection/",
+        views.employee_return_inspection,
+        name="return_inspection",
+    ),
+    path(
         "rentals/<int:item_id>/complete/",
         views.CompleteRentalView.as_view(),
         name="rental_complete",

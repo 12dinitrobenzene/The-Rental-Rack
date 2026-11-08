@@ -1,12 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import F, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 
 from accounts.permissions import get_employee_for_user
 from shop.models import (
@@ -24,7 +25,9 @@ from .forms import (
     ProductForm,
     ProductImageForm,
     ProductVariantForm,
+    RentalReturnForm,
     RentalOrderFilterForm,
+    ReturnInspectionForm,
 )
 
 
@@ -173,7 +176,9 @@ def employee_rental_detail(request, item_id):
     employee = get_employee_for_user(request.user)
     rental_item = employee_rental_item_or_404(employee, item_id)
     can_complete_and_settle = (
-        rental_item.status == RentalItem.Status.RETURNED
+        rental_item.order.payment_status
+        == RentalOrder.PaymentStatus.PAID
+        and rental_item.status == RentalItem.Status.RETURNED
         and RentalSettlement.has_eligible_inspection(rental_item)
         and not hasattr(rental_item, "settlement")
     )
@@ -186,6 +191,201 @@ def employee_rental_detail(request, item_id):
             "rental_item": rental_item,
             "can_complete_and_settle": can_complete_and_settle,
             "fulfilment_actions": available_fulfilment_actions(rental_item),
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_http_methods(["GET", "POST"])
+def employee_return_inspection(request, item_id):
+    employee = get_employee_for_user(request.user)
+
+    with transaction.atomic():
+        rental_item = employee_rental_item_or_404(
+            employee,
+            item_id,
+            for_update=request.method == "POST",
+        )
+
+        if (
+            rental_item.order.payment_status
+            != RentalOrder.PaymentStatus.PAID
+            or rental_item.status != RentalItem.Status.RETURNED
+        ):
+            messages.error(
+                request,
+                "Only a paid, returned item can be inspected.",
+            )
+            return redirect(
+                "vendor_portal:rental_detail",
+                item_id=item_id,
+            )
+
+        if request.method == "POST":
+            updated = RentalItem.objects.filter(
+                pk=rental_item.pk,
+                order__vendor=employee.vendor,
+                status=RentalItem.Status.RETURNED,
+                order__payment_status=RentalOrder.PaymentStatus.PAID,
+            ).update(status=RentalItem.Status.RETURNED)
+
+            if not updated:
+                messages.error(
+                    request,
+                    "This rental changed. Reopen it and try again.",
+                )
+                return redirect(
+                    "vendor_portal:rental_detail",
+                    item_id=item_id,
+                )
+
+        rental_return = get_object_or_404(
+            RentalReturn,
+            rental_item=rental_item,
+        )
+
+        inspection = ReturnInspection.objects.filter(
+            rental_return=rental_return
+        ).first()
+
+        if inspection and inspection.write_off_applied_at:
+            messages.error(
+                request,
+                "This write-off has already been processed.",
+            )
+            return redirect(
+                "vendor_portal:rental_detail",
+                item_id=item_id,
+            )
+
+        if inspection is None:
+            inspection = ReturnInspection(
+                rental_return=rental_return,
+            )
+
+        inspection.inspected_by = employee
+
+        form = ReturnInspectionForm(
+            request.POST if request.method == "POST" else None,
+            instance=inspection,
+        )
+
+        if request.method == "POST" and form.is_valid():
+            inspection = form.save()
+            ReturnInspection.objects.filter(
+                pk=inspection.pk
+            ).update(inspected_at=timezone.now())
+
+            messages.success(
+                request,
+                "Inspection saved. Cleaning and damaged items remain "
+                "on hold. Ready or written-off items can be completed.",
+            )
+
+            return redirect(
+                "vendor_portal:rental_detail",
+                item_id=item_id,
+            )
+
+    return render(
+        request,
+        "vendor_portal/return_inspection.html",
+        {
+            "vendor": employee.vendor,
+            "rental_item": rental_item,
+            "form": form,
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_http_methods(["GET", "POST"])
+def employee_record_return(request, item_id):
+    employee = get_employee_for_user(request.user)
+
+    with transaction.atomic():
+        rental_item = employee_rental_item_or_404(
+            employee,
+            item_id,
+            for_update=request.method == "POST",
+        )
+
+        if (
+            rental_item.order.payment_status
+            != RentalOrder.PaymentStatus.PAID
+            or rental_item.status not in {
+                RentalItem.Status.ACTIVE,
+                RentalItem.Status.OVERDUE,
+            }
+        ):
+            messages.error(
+                request,
+                "Only a paid, active or overdue rental can be returned.",
+            )
+            return redirect(
+                "vendor_portal:rental_detail",
+                item_id=item_id,
+            )
+
+        if RentalReturn.objects.filter(
+            rental_item=rental_item
+        ).exists():
+            messages.info(
+                request,
+                "A return has already been recorded for this item.",
+            )
+            return redirect(
+                "vendor_portal:rental_detail",
+                item_id=item_id,
+            )
+
+        return_record = RentalReturn(
+            rental_item=rental_item,
+            recorded_by=employee,
+        )
+
+        form = RentalReturnForm(
+            request.POST if request.method == "POST" else None,
+            instance=return_record,
+        )
+
+        if request.method == "POST" and form.is_valid():
+            previous_status = rental_item.status
+            rental_item.transition_to(RentalItem.Status.RETURNED)
+
+            updated = RentalItem.objects.filter(
+                pk=rental_item.pk,
+                order__vendor=employee.vendor,
+                order__payment_status=RentalOrder.PaymentStatus.PAID,
+                status=previous_status,
+            ).update(status=RentalItem.Status.RETURNED)
+
+            if updated:
+                form.save()
+
+                messages.success(
+                    request,
+                    "Return recorded. The item remains unavailable "
+                    "until inspection and completion.",
+                )
+                return redirect(
+                    "vendor_portal:rental_detail",
+                    item_id=item_id,
+                )
+
+            form.add_error(
+                None,
+                "This rental changed while you were working. "
+                "Reopen the item and try again.",
+            )
+
+    return render(
+        request,
+        "vendor_portal/return_form.html",
+        {
+            "vendor": employee.vendor,
+            "rental_item": rental_item,
+            "form": form,
         },
     )
 
@@ -254,69 +454,110 @@ class CompleteRentalView(LoginRequiredMixin, View):
     def post(self, request, item_id):
         employee = get_employee_for_user(request.user)
 
-        with transaction.atomic():
-            rental_item = employee_rental_item_or_404(
-                employee,
-                item_id,
-                for_update=True,
-            )
-            RentalReturn.objects.select_for_update().filter(
-                rental_item=rental_item
-            ).first()
-            ReturnInspection.objects.select_for_update().filter(
-                rental_return__rental_item=rental_item
-            ).first()
-            existing_settlement = (
-                RentalSettlement.objects.select_for_update()
-                .filter(rental_item=rental_item)
-                .first()
-            )
-
-            if existing_settlement:
-                messages.info(
-                    request,
-                    "This rental item already has a simulated settlement.",
-                )
-                return redirect(
-                    "vendor_portal:rental_detail",
-                    item_id=rental_item.pk,
+        try:
+            with transaction.atomic():
+                rental_item = employee_rental_item_or_404(
+                    employee,
+                    item_id,
+                    for_update=True,
                 )
 
-            if rental_item.status not in {
-                RentalItem.Status.RETURNED,
-                RentalItem.Status.COMPLETED,
-            }:
-                messages.error(
-                    request,
-                    "Only an inspected returned item can be completed.",
-                )
-                return redirect(
-                    "vendor_portal:rental_detail",
-                    item_id=rental_item.pk,
-                )
+                if RentalSettlement.objects.filter(
+                    rental_item=rental_item
+                ).exists():
+                    messages.info(
+                        request,
+                        "This rental already has a simulated settlement.",
+                    )
+                    return redirect(
+                        "vendor_portal:rental_detail",
+                        item_id=item_id,
+                    )
 
-            if not RentalSettlement.has_eligible_inspection(rental_item):
-                messages.error(
-                    request,
-                    "Complete the return inspection before settlement.",
-                )
-                return redirect(
-                    "vendor_portal:rental_detail",
-                    item_id=rental_item.pk,
-                )
+                if (
+                    rental_item.order.payment_status
+                    != RentalOrder.PaymentStatus.PAID
+                    or rental_item.status != RentalItem.Status.RETURNED
+                ):
+                    raise ValidationError(
+                        "Only a paid, returned item can be completed."
+                    )
 
-            if rental_item.status == RentalItem.Status.RETURNED:
                 rental_item.transition_to(RentalItem.Status.COMPLETED)
 
-            settlement = RentalSettlement.build_for_item(rental_item)
-            settlement.full_clean()
-            rental_item.save(update_fields=["status"])
-            settlement.save()
+                updated = RentalItem.objects.filter(
+                    pk=rental_item.pk,
+                    order__vendor=employee.vendor,
+                    status=RentalItem.Status.RETURNED,
+                    order__payment_status=RentalOrder.PaymentStatus.PAID,
+                ).update(status=RentalItem.Status.COMPLETED)
 
-        messages.success(
-            request,
-            "Rental completed and simulated settlement recorded.",
-        )
+                if not updated:
+                    raise ValidationError(
+                        "This rental changed. Reopen it and try again."
+                    )
+
+                inspection = (
+                    ReturnInspection.objects
+                    .select_for_update()
+                    .filter(rental_return__rental_item=rental_item)
+                    .first()
+                )
+
+                if (
+                    inspection is None
+                    or inspection.condition not in {
+                        ReturnInspection.Condition.READY,
+                        ReturnInspection.Condition.WRITTEN_OFF,
+                    }
+                ):
+                    raise ValidationError(
+                        "Inspection must be Ready or Written Off."
+                    )
+
+                if (
+                    inspection.condition
+                    == ReturnInspection.Condition.WRITTEN_OFF
+                    and inspection.write_off_applied_at is None
+                ):
+                    claimed = ReturnInspection.objects.filter(
+                        pk=inspection.pk,
+                        condition=ReturnInspection.Condition.WRITTEN_OFF,
+                        write_off_applied_at__isnull=True,
+                    ).update(write_off_applied_at=timezone.now())
+
+                    if not claimed:
+                        raise ValidationError(
+                            "The inspection changed. Reopen it and try again."
+                        )
+
+                    stock_updated = ProductVariant.objects.filter(
+                        pk=rental_item.variant_id,
+                        total_quantity__gte=rental_item.quantity,
+                    ).update(
+                        total_quantity=(
+                            F("total_quantity") - rental_item.quantity
+                        )
+                    )
+
+                    if not stock_updated:
+                        raise ValidationError(
+                            "Physical stock is lower than the write-off "
+                            "quantity. Check inventory before completing."
+                        )
+
+                settlement = RentalSettlement.build_for_item(rental_item)
+                settlement.full_clean()
+                settlement.save()
+
+        except ValidationError as error:
+            messages.error(request, " ".join(error.messages))
+        else:
+            messages.success(
+                request,
+                "Rental completed and simulated settlement recorded.",
+            )
+
         return redirect(
             "vendor_portal:rental_detail",
             item_id=rental_item.pk,

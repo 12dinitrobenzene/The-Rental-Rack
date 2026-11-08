@@ -493,6 +493,12 @@ class RentalSettlementWorkflowTests(TestCase):
             args=[(item or self.item).pk],
         )
 
+    def inspection_url(self, item=None):
+        return reverse(
+            "vendor_portal:return_inspection",
+            args=[(item or self.item).pk],
+        )
+
     def test_employee_can_open_own_rental_and_see_completion_action(self):
         self.client.force_login(self.employee_user)
 
@@ -518,8 +524,10 @@ class RentalSettlementWorkflowTests(TestCase):
 
         self.assertRedirects(response, self.detail_url())
         self.item.refresh_from_db()
+        self.variant.refresh_from_db()
         settlement = RentalSettlement.objects.get(rental_item=self.item)
         self.assertEqual(self.item.status, RentalItem.Status.COMPLETED)
+        self.assertEqual(self.variant.total_quantity, 2)
         self.assertEqual(
             settlement.commission_rate_snapshot,
             Decimal("0.2000"),
@@ -825,3 +833,91 @@ class RentalSettlementWorkflowTests(TestCase):
         )
 
         self.assertEqual(list(response.context["orders"]), [])
+
+    def test_inspection_updates_existing_inspection(self):
+        self.inspection.condition = ReturnInspection.Condition.CLEANING
+        self.inspection.save(update_fields=["condition"])
+        self.client.force_login(self.employee_user)
+
+        get_response = self.client.get(self.inspection_url())
+        self.assertEqual(get_response.status_code, 200)
+
+        response = self.client.post(
+            self.inspection_url(),
+            {
+                "condition": ReturnInspection.Condition.READY,
+                "notes": "Cleaned and ready for reuse.",
+            },
+        )
+
+        self.assertRedirects(response, self.detail_url())
+        self.inspection.refresh_from_db()
+        self.assertEqual(
+            self.inspection.condition,
+            ReturnInspection.Condition.READY,
+        )
+        self.assertEqual(self.inspection.notes, "Cleaned and ready for reuse.")
+        self.assertEqual(self.inspection.inspected_by, self.employee)
+        self.assertEqual(
+            ReturnInspection.objects.filter(
+                rental_return=self.rental_return
+            ).count(),
+            1,
+        )
+
+    def test_written_off_item_deducts_stock_once_on_completion(self):
+        self.inspection.condition = ReturnInspection.Condition.WRITTEN_OFF
+        self.inspection.save(update_fields=["condition"])
+        self.client.force_login(self.employee_user)
+
+        response = self.client.post(self.complete_url())
+
+        self.assertRedirects(response, self.detail_url())
+        self.item.refresh_from_db()
+        self.variant.refresh_from_db()
+        self.inspection.refresh_from_db()
+        self.assertEqual(self.item.status, RentalItem.Status.COMPLETED)
+        self.assertEqual(self.variant.total_quantity, 0)
+        self.assertIsNotNone(self.inspection.write_off_applied_at)
+        self.assertTrue(
+            RentalSettlement.objects.filter(rental_item=self.item).exists()
+        )
+
+        self.client.post(self.complete_url())
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.total_quantity, 0)
+
+    def test_insufficient_stock_rolls_back_writeoff_completion(self):
+        self.inspection.condition = ReturnInspection.Condition.WRITTEN_OFF
+        self.inspection.save(update_fields=["condition"])
+        self.variant.total_quantity = 1
+        self.variant.save(update_fields=["total_quantity"])
+        self.client.force_login(self.employee_user)
+
+        self.client.post(self.complete_url())
+
+        self.item.refresh_from_db()
+        self.variant.refresh_from_db()
+        self.inspection.refresh_from_db()
+        self.assertEqual(self.item.status, RentalItem.Status.RETURNED)
+        self.assertEqual(self.variant.total_quantity, 1)
+        self.assertIsNone(self.inspection.write_off_applied_at)
+        self.assertFalse(
+            RentalSettlement.objects.filter(rental_item=self.item).exists()
+        )
+
+    def test_unpaid_order_cannot_be_completed_or_inspected(self):
+        self.order.payment_status = RentalOrder.PaymentStatus.PENDING
+        self.order.save(update_fields=["payment_status"])
+        self.client.force_login(self.employee_user)
+
+        completion_response = self.client.post(self.complete_url())
+        inspection_response = self.client.get(self.inspection_url())
+
+        self.assertRedirects(completion_response, self.detail_url())
+        self.assertRedirects(inspection_response, self.detail_url())
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, RentalItem.Status.RETURNED)
+        self.assertFalse(
+            RentalSettlement.objects.filter(rental_item=self.item).exists()
+        )

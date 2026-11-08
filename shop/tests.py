@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.utils import timezone
 
 from accounts.models import VendorEmployee
 from shop.availability import available_quantity_by_day
@@ -201,3 +202,31 @@ class RentalLifecycleModelTests(TestCase):
         self.assertIn("rental_item", raised.exception.message_dict)
         self.assertIn("platform_amount", raised.exception.message_dict)
         self.assertIn("vendor_amount", raised.exception.message_dict)
+
+    def test_settlement_rejects_unprocessed_written_off_inspection(self):
+        rental_return = RentalReturn.objects.create(
+            rental_item=self.item,
+            returned_on=date(2026, 11, 3),
+            recorded_by=self.employee,
+        )
+        self.item.status = RentalItem.Status.COMPLETED
+        self.item.save(update_fields=["status"])
+        inspection = ReturnInspection.objects.create(
+            rental_return=rental_return,
+            condition=ReturnInspection.Condition.WRITTEN_OFF,
+            inspected_by=self.employee,
+        )
+        settlement = RentalSettlement.build_for_item(self.item)
+
+        with self.assertRaises(ValidationError) as raised:
+            settlement.full_clean()
+
+        self.assertIn("rental_item", raised.exception.message_dict)
+        self.assertIn(
+            "Process the write-off before creating settlement.",
+            raised.exception.message_dict["rental_item"],
+        )
+
+        inspection.write_off_applied_at = timezone.now()
+        inspection.save(update_fields=["write_off_applied_at"])
+        settlement.full_clean()
