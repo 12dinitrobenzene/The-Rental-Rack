@@ -1,6 +1,14 @@
 from django import forms
+from django.utils import timezone
 
-from shop.models import Product, ProductImage, ProductVariant, RentalItem
+from shop.models import (
+    Product,
+    ProductImage,
+    ProductVariant,
+    RentalItem,
+    RentalReturn,
+    ReturnInspection,
+)
 
 
 class ProductForm(forms.ModelForm):
@@ -111,3 +119,48 @@ class RentalOrderFilterForm(forms.Form):
             )
 
         return cleaned_data
+
+
+class RentalReturnForm(forms.ModelForm):
+    class Meta:
+        model = RentalReturn
+        fields = ["returned_on"]
+        labels = {
+            "returned_on": "Actual return date",
+        }
+        widgets = {
+            "returned_on": forms.DateInput(
+                format="%Y-%m-%d",
+                attrs={
+                    "type": "date",
+                    "class": "form-control",
+                },
+            ),
+        }
+
+    def clean_returned_on(self):
+        returned_on = self.cleaned_data["returned_on"]
+
+        if returned_on > timezone.localdate():
+            raise forms.ValidationError(
+                "The actual return date cannot be in the future."
+            )
+
+        return returned_on
+
+
+class ReturnInspectionForm(forms.ModelForm):
+    class Meta:
+        model = ReturnInspection
+        fields = ["condition", "notes"]
+        widgets = {
+            "condition": forms.Select(
+                attrs={"class": "form-select"}
+            ),
+            "notes": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 4,
+                }
+            ),
+        }

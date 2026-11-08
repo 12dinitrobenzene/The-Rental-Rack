@@ -27,6 +27,13 @@
             {{ rental_item.rental_start_date|date:"d M Y" }}–{{ rental_item.rental_end_date|date:"d M Y" }}
         </dd>
 
+        {% if rental_item.rental_return %}
+            <dt class="col-sm-4">Actual return date</dt>
+            <dd class="col-sm-8">
+                {{ rental_item.rental_return.returned_on|date:"d M Y" }}
+            </dd>
+        {% endif %}
+
         <dt class="col-sm-4">Fulfilment status</dt>
         <dd class="col-sm-8">
             <span class="badge text-bg-secondary">{{ rental_item.get_status_display }}</span>
@@ -39,6 +46,11 @@
         <dd class="col-sm-8">
             {% if rental_item.rental_return.inspection %}
                 {{ rental_item.rental_return.inspection.get_condition_display }}
+                {% if rental_item.rental_return.inspection.notes %}
+                    <div class="mt-2">
+                        {{ rental_item.rental_return.inspection.notes|linebreaksbr }}
+                    </div>
+                {% endif %}
             {% else %}
                 <span class="text-muted">Not completed</span>
             {% endif %}
@@ -68,6 +80,22 @@
             {% endfor %}
         </div>
     </section>
+{% endif %}
+
+{% if rental_item.order.payment_status == "Paid" %}
+    {% if rental_item.status == "Active" or rental_item.status == "Overdue" %}
+        <a class="btn btn-outline-dark mt-4"
+           href="{% url 'vendor_portal:rental_return' rental_item.pk %}">
+            Record return
+        </a>
+    {% endif %}
+{% endif %}
+
+{% if rental_item.order.payment_status == "Paid" and rental_item.status == "Returned" and rental_item.rental_return %}
+    <a class="btn btn-outline-dark mt-4"
+       href="{% url 'vendor_portal:return_inspection' rental_item.pk %}">
+        Inspect / update inspection
+    </a>
 {% endif %}
 
 {% if rental_item.settlement %}

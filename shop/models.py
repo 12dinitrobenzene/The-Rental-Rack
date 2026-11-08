@@ -587,6 +587,27 @@ class RentalSettlement(models.Model):
 
         if self.rental_item_id:
             rental_item = self.rental_item
+            rental_return = getattr(
+                rental_item,
+                "rental_return",
+                None,
+            )
+            inspection = (
+                getattr(rental_return, "inspection", None)
+                if rental_return
+                else None
+            )
+
+            if (
+                inspection is not None
+                and inspection.condition
+                == ReturnInspection.Condition.WRITTEN_OFF
+                and inspection.write_off_applied_at is None
+            ):
+                errors["rental_item"] = (
+                    "Process the write-off before creating settlement."
+                )
+
             if rental_item.status != RentalItem.Status.COMPLETED:
                 errors["rental_item"] = (
                     "Settlement requires a completed rental item."
