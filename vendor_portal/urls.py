@@ -53,4 +53,10 @@ urlpatterns = [
         views.employee_image_edit,
         name="image_edit",
     ),
+    path("rentals/", views.employee_rental_order_list, name="rental_order_list"),
+    path(
+        "rentals/orders/<int:order_id>/",
+        views.employee_rental_order_detail,
+        name="order_detail",
+    ),
 ]

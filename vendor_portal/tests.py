@@ -624,3 +624,204 @@ class RentalSettlementWorkflowTests(TestCase):
                 response = method(url)
                 self.assertEqual(response.status_code, 302)
                 self.assertIn(reverse("accounts:login"), response.url)
+
+    def order_list_url(self):
+        return reverse("vendor_portal:rental_order_list")
+
+    def order_detail_url(self, order_id):
+        return reverse(
+            "vendor_portal:order_detail",
+            args=[order_id],
+        )
+
+    def test_order_pages_are_isolated_for_both_vendors(self):
+        other_employee_user = get_user_model().objects.create_user(
+            username="other-queue-employee",
+        )
+        other_employee_user.groups.add(
+            Group.objects.get(name=VENDOR_EMPLOYEE_GROUP)
+        )
+        VendorEmployee.objects.create(
+            user=other_employee_user,
+            vendor=self.other_vendor,
+        )
+
+        cases = [
+            (
+                self.employee_user,
+                self.order.pk,
+                self.other_item.order_id,
+            ),
+            (
+                other_employee_user,
+                self.other_item.order_id,
+                self.order.pk,
+            ),
+        ]
+
+        for user, own_order_id, foreign_order_id in cases:
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+
+                for params in ({}, {"status": "Returned"}):
+                    response = self.client.get(
+                        self.order_list_url(), params
+                    )
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(
+                        [order.pk for order in response.context["orders"]],
+                        [own_order_id],
+                    )
+
+                response = self.client.get(
+                    self.order_detail_url(own_order_id)
+                )
+                self.assertEqual(response.status_code, 200)
+
+                response = self.client.get(
+                    self.order_detail_url(foreign_order_id)
+                )
+                self.assertEqual(response.status_code, 404)
+
+    def test_customer_cannot_access_order_pages(self):
+        customer_group, _ = Group.objects.get_or_create(name="Customer")
+        self.customer.groups.add(customer_group)
+        self.client.force_login(self.customer)
+
+        for url in (
+            self.order_list_url(),
+            self.order_detail_url(self.order.pk),
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_user_is_redirected_from_order_pages(self):
+        for url in (
+            self.order_list_url(),
+            self.order_detail_url(self.order.pk),
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertRedirects(
+                    response,
+                    f"{reverse('accounts:login')}?next={url}",
+                    fetch_redirect_response=False,
+                )
+
+    def test_order_filters(self):
+        self.client.force_login(self.employee_user)
+
+        cases = [
+            ({}, True),
+            ({"status": "Returned"}, True),
+            ({"status": "Preparing"}, False),
+            ({"date_from": "2026-11-05"}, True),
+            ({"date_from": "2026-11-06"}, False),
+            ({"date_to": "2026-11-01"}, True),
+            ({"date_to": "2026-10-31"}, False),
+            (
+                {
+                    "status": "Returned",
+                    "date_from": "2026-11-03",
+                    "date_to": "2026-11-04",
+                },
+                True,
+            ),
+        ]
+
+        for params, should_match in cases:
+            with self.subTest(params=params):
+                response = self.client.get(
+                    self.order_list_url(), params
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    [order.pk for order in response.context["orders"]],
+                    [self.order.pk] if should_match else [],
+                )
+
+    def test_invalid_order_filters_show_errors(self):
+        self.client.force_login(self.employee_user)
+
+        cases = [
+            ({"status": "Unknown"}, "status"),
+            ({"date_from": "not-a-date"}, "date_from"),
+            (
+                {
+                    "date_from": "2026-11-05",
+                    "date_to": "2026-11-01",
+                },
+                "date_to",
+            ),
+        ]
+
+        for params, error_field in cases:
+            with self.subTest(params=params):
+                response = self.client.get(
+                    self.order_list_url(), params
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(
+                    error_field,
+                    response.context["filter_form"].errors,
+                )
+                self.assertEqual(
+                    list(response.context["orders"]), []
+                )
+
+    def add_queue_item(self, *, status, rental_date):
+        item = RentalItem.objects.create(
+            order=self.order,
+            variant=self.variant,
+            product_name_snapshot="Extra queue item",
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=rental_date,
+            rental_end_date=rental_date,
+            rental_days=1,
+            line_total=Decimal("10.00"),
+            status=status,
+        )
+        self.order.total_amount += item.line_total
+        self.order.save(update_fields=["total_amount"])
+        return item
+
+    def test_multiple_matching_items_do_not_duplicate_order(self):
+        self.add_queue_item(
+            status=RentalItem.Status.RETURNED,
+            rental_date=date(2026, 11, 3),
+        )
+        self.client.force_login(self.employee_user)
+
+        response = self.client.get(
+            self.order_list_url(),
+            {
+                "status": "Returned",
+                "date_from": "2026-11-03",
+                "date_to": "2026-11-03",
+            },
+        )
+
+        self.assertEqual(
+            [order.pk for order in response.context["orders"]],
+            [self.order.pk],
+        )
+
+    def test_status_and_dates_must_match_the_same_item(self):
+        self.add_queue_item(
+            status=RentalItem.Status.PREPARING,
+            rental_date=date(2026, 11, 10),
+        )
+        self.client.force_login(self.employee_user)
+
+        response = self.client.get(
+            self.order_list_url(),
+            {
+                "status": "Returned",
+                "date_from": "2026-11-10",
+                "date_to": "2026-11-10",
+            },
+        )
+
+        self.assertEqual(list(response.context["orders"]), [])

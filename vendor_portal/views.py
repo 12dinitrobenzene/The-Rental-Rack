@@ -13,12 +13,18 @@ from shop.models import (
     ProductImage,
     ProductVariant,
     RentalItem,
+    RentalOrder,
     RentalReturn,
     RentalSettlement,
     ReturnInspection,
 )
 
-from .forms import ProductForm, ProductImageForm, ProductVariantForm
+from .forms import (
+    ProductForm,
+    ProductImageForm,
+    ProductVariantForm,
+    RentalOrderFilterForm,
+)
 
 
 def inventory_status(product):
@@ -373,5 +379,71 @@ def employee_image_edit(request, product_id, image_id):
             "product_image": image,
             "form": form,
             "page_title": "Edit image",
+        },
+    )
+
+@login_required(login_url="accounts:login")
+def employee_rental_order_list(request):
+    employee = get_employee_for_user(request.user)
+    filter_form = RentalOrderFilterForm(request.GET)
+
+    orders = (
+        RentalOrder.objects
+        .filter(vendor=employee.vendor)
+        .select_related("customer")
+        .prefetch_related("items__variant")
+        .order_by("-created_at", "-pk")
+    )
+
+    if filter_form.is_valid():
+        status = filter_form.cleaned_data["status"]
+        date_from = filter_form.cleaned_data["date_from"]
+        date_to = filter_form.cleaned_data["date_to"]
+
+        item_filters = {}
+
+        if status:
+            item_filters["items__status"] = status
+
+        if date_from:
+            item_filters["items__rental_end_date__gte"] = date_from
+
+        if date_to:
+            item_filters["items__rental_start_date__lte"] = date_to
+
+        if item_filters:
+            orders = orders.filter(**item_filters).distinct()
+    else:
+        orders = orders.none()
+
+    return render(
+        request,
+        "vendor_portal/rental_order_list.html",
+        {
+            "vendor": employee.vendor,
+            "orders": orders,
+            "filter_form": filter_form,
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
+def employee_rental_order_detail(request, order_id):
+    employee = get_employee_for_user(request.user)
+
+    order = get_object_or_404(
+        RentalOrder.objects
+        .filter(vendor=employee.vendor)
+        .select_related("customer")
+        .prefetch_related("items__variant"),
+        pk=order_id,
+    )
+
+    return render(
+        request,
+        "vendor_portal/rental_order_detail.html",
+        {
+            "vendor": employee.vendor,
+            "order": order,
         },
     )

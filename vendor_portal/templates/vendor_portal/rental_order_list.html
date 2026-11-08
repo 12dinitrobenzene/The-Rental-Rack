@@ -1,0 +1,85 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Rental orders | {{ vendor.name }}{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'vendor_portal:home' %}">
+    Back to vendor workspace
+</a>
+
+<header class="my-4">
+    <p class="text-muted small text-uppercase mb-1">Rental operations</p>
+    <h1 class="mb-1">Rental orders</h1>
+    <p class="text-muted mb-0">{{ vendor.name }}</p>
+</header>
+
+<form method="get"
+      action="{% url 'vendor_portal:rental_order_list' %}"
+      class="border rounded p-3 mb-4">
+    {{ filter_form.non_field_errors }}
+
+    <div class="row g-3 align-items-end">
+        {% for field in filter_form %}
+            <div class="col-md-3">
+                <label class="form-label" for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                </label>
+
+                {{ field }}
+
+                {% for error in field.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        <div class="col-md-3">
+            <button class="btn btn-dark" type="submit">Filter</button>
+            <a class="btn btn-outline-secondary"
+               href="{% url 'vendor_portal:rental_order_list' %}">
+                Reset
+            </a>
+        </div>
+    </div>
+
+    <p class="small text-muted mt-3 mb-0">
+        Shows orders with an item matching the selected status and
+        overlapping the selected rental period.
+    </p>
+</form>
+
+<section aria-label="Rental orders">
+    {% for order in orders %}
+        <article class="border rounded p-4 mb-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                    <h2 class="h5 mb-1">
+                        <a class="link-dark"
+                           href="{% url 'vendor_portal:order_detail' order.pk %}">
+                            Order #{{ order.pk }}
+                        </a>
+                    </h2>
+                    <p class="text-muted mb-2">
+                        {{ order.created_at|date:"d M Y, H:i" }}
+                        · {{ order.customer.username }}
+                    </p>
+                    <p class="mb-0">
+                        {{ order.items.count }} rental item(s)
+                        · {{ order.get_payment_status_display }}
+                    </p>
+                </div>
+                <a class="btn btn-outline-dark"
+                   href="{% url 'vendor_portal:order_detail' order.pk %}">
+                    View order
+                </a>
+            </div>
+        </article>
+    {% empty %}
+        {% if filter_form.errors %}
+            <p class="text-muted">Correct the filters above to view orders.</p>
+        {% else %}
+            <p class="text-muted">No rental orders match your filters.</p>
+        {% endif %}
+    {% endfor %}
+</section>
+{% endblock %}
