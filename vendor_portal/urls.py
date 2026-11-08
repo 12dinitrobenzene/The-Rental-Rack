@@ -13,6 +13,11 @@ urlpatterns = [
         name="rental_detail",
     ),
     path(
+        "rentals/<int:item_id>/transition/",
+        views.employee_rental_transition,
+        name="rental_transition",
+    ),
+    path(
         "rentals/<int:item_id>/complete/",
         views.CompleteRentalView.as_view(),
         name="rental_complete",
