@@ -1,0 +1,75 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Order #{{ order.pk }} | {{ vendor.name }}{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'vendor_portal:rental_order_list' %}">
+    Back to rental orders
+</a>
+
+<header class="my-4">
+    <p class="text-muted small text-uppercase mb-1">Rental order</p>
+    <h1 class="mb-1">Order #{{ order.pk }}</h1>
+    <p class="text-muted mb-0">{{ vendor.name }}</p>
+</header>
+
+<section class="border rounded p-4" aria-labelledby="order-details-heading">
+    <h2 class="h4" id="order-details-heading">Order details</h2>
+    <dl class="row mb-0">
+        <dt class="col-sm-4">Customer</dt>
+        <dd class="col-sm-8">{{ order.customer.username }}</dd>
+
+        <dt class="col-sm-4">Placed on</dt>
+        <dd class="col-sm-8">{{ order.created_at|date:"d M Y, H:i" }}</dd>
+
+        <dt class="col-sm-4">Payment</dt>
+        <dd class="col-sm-8">{{ order.get_payment_status_display }}</dd>
+
+        <dt class="col-sm-4">Delivery address</dt>
+        <dd class="col-sm-8">{{ order.delivery_address|linebreaksbr }}</dd>
+
+        <dt class="col-sm-4">Order total</dt>
+        <dd class="col-sm-8">SGD {{ order.total_amount|floatformat:2 }}</dd>
+    </dl>
+</section>
+
+<section class="mt-4" aria-labelledby="order-items-heading">
+    <h2 class="h4 mb-3" id="order-items-heading">Rental items</h2>
+    {% for item in order.items.all %}
+        <article class="border rounded p-4 mb-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                    <h3 class="h5 mb-1">{{ item.product_name_snapshot }}</h3>
+                    <p class="text-muted mb-2">
+                        {{ item.variant.size }} / {{ item.variant.colour }}
+                    </p>
+                </div>
+                <a class="btn btn-sm btn-outline-dark"
+                   href="{% url 'vendor_portal:rental_detail' item.pk %}">
+                    View rental item
+                </a>
+            </div>
+
+            <dl class="row mb-2">
+                <dt class="col-sm-4">Status</dt>
+                <dd class="col-sm-8">
+                    <span class="badge text-bg-secondary">{{ item.get_status_display }}</span>
+                </dd>
+
+                <dt class="col-sm-4">Rental dates</dt>
+                <dd class="col-sm-8">
+                    {{ item.rental_start_date|date:"d M Y" }}–{{ item.rental_end_date|date:"d M Y" }}
+                </dd>
+
+                <dt class="col-sm-4">Quantity</dt>
+                <dd class="col-sm-8">{{ item.quantity }}</dd>
+
+                <dt class="col-sm-4">Line total</dt>
+                <dd class="col-sm-8">SGD {{ item.line_total|floatformat:2 }}</dd>
+            </dl>
+        </article>
+    {% empty %}
+        <p class="text-muted">No rental items are recorded for this order.</p>
+    {% endfor %}
+</section>
+{% endblock %}

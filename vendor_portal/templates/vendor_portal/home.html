@@ -15,6 +15,9 @@
     <a class="btn btn-outline-dark" href="#rental-fulfilment">
         Rental fulfilment
     </a>
+    <a class="btn btn-outline-dark" href="{% url 'vendor_portal:rental_order_list' %}">
+        Rental orders
+    </a>
     {% if employee.is_vendor_admin %}
         <a class="btn btn-outline-dark" href="{% url 'accounts:vendor_team' %}">
             Manage team
