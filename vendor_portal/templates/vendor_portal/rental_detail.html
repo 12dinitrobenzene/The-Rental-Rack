@@ -46,6 +46,30 @@
     </dl>
 </section>
 
+{% if fulfilment_actions %}
+    <section class="border rounded p-4 mt-4"
+             aria-labelledby="fulfilment-actions-heading">
+        <h2 class="h4" id="fulfilment-actions-heading">
+            Fulfilment actions
+        </h2>
+
+        <div class="d-flex flex-wrap gap-2">
+            {% for entry in fulfilment_actions %}
+                <form method="post"
+                      action="{% url 'vendor_portal:rental_transition' rental_item.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-dark"
+                            type="submit"
+                            name="action"
+                            value="{{ entry.action }}">
+                        {{ entry.label }}
+                    </button>
+                </form>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
 {% if rental_item.settlement %}
     {% include "vendor_portal/components/settlement_summary.html" with settlement=rental_item.settlement only %}
 {% elif can_complete_and_settle %}

@@ -4,6 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views import View
 from django.views.decorators.http import require_POST
 
@@ -25,6 +26,50 @@ from .forms import (
     ProductVariantForm,
     RentalOrderFilterForm,
 )
+
+
+FULFILMENT_ACTIONS = {
+    "prepare": (
+        RentalItem.Status.PREPARING,
+        "Start preparing",
+    ),
+    "dispatch": (
+        RentalItem.Status.DISPATCHED,
+        "Mark dispatched",
+    ),
+    "activate": (
+        RentalItem.Status.ACTIVE,
+        "Mark active",
+    ),
+    "mark_overdue": (
+        RentalItem.Status.OVERDUE,
+        "Mark overdue",
+    ),
+}
+
+
+def available_fulfilment_actions(rental_item):
+    if rental_item.order.payment_status != RentalOrder.PaymentStatus.PAID:
+        return []
+
+    actions = []
+
+    for action, (target_status, label) in FULFILMENT_ACTIONS.items():
+        if not rental_item.can_transition_to(target_status):
+            continue
+
+        if (
+            target_status == RentalItem.Status.OVERDUE
+            and rental_item.rental_end_date >= timezone.localdate()
+        ):
+            continue
+
+        actions.append({
+            "action": action,
+            "label": label,
+        })
+
+    return actions
 
 
 def inventory_status(product):
@@ -140,7 +185,66 @@ def employee_rental_detail(request, item_id):
             "vendor": employee.vendor,
             "rental_item": rental_item,
             "can_complete_and_settle": can_complete_and_settle,
+            "fulfilment_actions": available_fulfilment_actions(rental_item),
         },
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def employee_rental_transition(request, item_id):
+    employee = get_employee_for_user(request.user)
+    action = request.POST.get("action")
+
+    with transaction.atomic():
+        rental_item = employee_rental_item_or_404(
+            employee,
+            item_id,
+            for_update=True,
+        )
+
+        allowed_actions = {
+            entry["action"]
+            for entry in available_fulfilment_actions(rental_item)
+        }
+
+        if action not in allowed_actions:
+            messages.error(
+                request,
+                "That action is not available for this rental item's "
+                "current status.",
+            )
+            return redirect(
+                "vendor_portal:rental_detail",
+                item_id=rental_item.pk,
+            )
+
+        previous_status = rental_item.status
+        target_status, _ = FULFILMENT_ACTIONS[action]
+        rental_item.transition_to(target_status)
+
+        updated = RentalItem.objects.filter(
+            pk=rental_item.pk,
+            order__vendor=employee.vendor,
+            order__payment_status=RentalOrder.PaymentStatus.PAID,
+            status=previous_status,
+        ).update(status=rental_item.status)
+
+        if updated:
+            messages.success(
+                request,
+                f"Rental item marked {rental_item.get_status_display()}.",
+            )
+        else:
+            messages.error(
+                request,
+                "This rental changed while you were working. "
+                "Review its current status and try again.",
+            )
+
+    return redirect(
+        "vendor_portal:rental_detail",
+        item_id=item_id,
     )
 
 
