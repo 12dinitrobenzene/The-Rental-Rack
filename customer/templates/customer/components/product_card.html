@@ -41,7 +41,7 @@
                 View details
             </a>
 
-            {% include "customer/components/wishlist_button.html" with product=product only %}
+            {% include "customer/components/wishlist_button.html" with product=product csrf_token=csrf_token only %}
         </div>
     </div>
 </article>

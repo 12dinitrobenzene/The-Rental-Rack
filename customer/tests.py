@@ -2139,6 +2139,7 @@ class WishlistTests(TestCase):
 
         self.assertContains(response, self.older_product.name)
         self.assertContains(response, "Remove from wishlist")
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
         self.assertNotContains(response, self.newer_product.name)
         self.assertTrue(WishlistItem.objects.filter(pk=other_item.pk).exists())
 
