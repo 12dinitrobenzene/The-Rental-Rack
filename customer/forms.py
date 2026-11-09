@@ -6,7 +6,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from shop.models import ProductVariant
+from shop.models import ProductReview, ProductVariant
 
 from shop.rental_rules import calculate_rental_totals
 
@@ -201,6 +201,43 @@ class CheckoutForm(forms.Form):
             attrs={"class": "form-check-input"}
         ),
     )
+
+
+class ProductReviewForm(forms.ModelForm):
+    rating = forms.TypedChoiceField(
+        coerce=int,
+        choices=(
+            (5, "5 - Excellent"),
+            (4, "4 - Good"),
+            (3, "3 - Average"),
+            (2, "2 - Fair"),
+            (1, "1 - Poor"),
+        ),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+    class Meta:
+        model = ProductReview
+        fields = ("rating", "review_text")
+        labels = {"review_text": "Written review"}
+        widgets = {
+            "review_text": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 5,
+                    "maxlength": 1000,
+                    "placeholder": "Share your experience with this clothing.",
+                }
+            ),
+        }
+
+    def clean_review_text(self):
+        review_text = self.cleaned_data["review_text"].strip()
+
+        if not review_text:
+            raise ValidationError("Please enter a written review.")
+
+        return review_text
 
 
 SILHOUETTE_CHOICES = (
