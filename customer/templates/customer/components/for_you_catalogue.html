@@ -9,7 +9,18 @@
                 {% include "customer/components/product_card.html" with product=product only %}
             </div>
         {% empty %}
-            <p class="text-muted">No clothing is available yet.</p>
+            <div class="col-12">
+                <p class="text-muted">
+                    No eligible products currently match your
+                    {{ style_profile.predicted_style.display_name }}
+                    style.
+                </p>
+
+                <a href="{% url 'customer:style_preferences' %}"
+                   class="btn btn-outline-dark">
+                    Update preferences
+                </a>
+            </div>
         {% endfor %}
     </div>
 </section>

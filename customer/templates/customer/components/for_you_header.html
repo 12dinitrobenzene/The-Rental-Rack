@@ -17,8 +17,9 @@
             </h1>
 
             <p class="for-you-description">
-                Bold silhouettes. Statement pieces. Occasion-led edits.
-                Discover clothing inspired by your style.
+                Clothing selected for your
+                {{ style_profile.predicted_style.display_name }}
+                style profile.
             </p>
 
             <a href="{% url 'customer:style_preferences' %}"
@@ -40,6 +41,8 @@
     </div>
 
     <div class="for-you-filters">
-        <span class="for-you-filter-active">ALL FOR YOU</span>
+        <span class="for-you-filter-active">
+            {{ style_profile.predicted_style.display_name|upper }}
+        </span>
     </div>
 </header>
