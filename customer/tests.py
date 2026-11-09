@@ -13,11 +13,14 @@ from django.urls import reverse
 
 from accounts.roles import CUSTOMER_GROUP
 from customer.forms import RentalSelectionForm, StyleQuizForm
+from customer.models import CustomerProductInteraction
 from recommendations.services import (
     EXPECTED_LABELS,
     StyleModelError,
     load_style_artifact,
     predict_style,
+    rank_recommended_products,
+    recommendation_score,
 )
 from shop.availability import available_quantity_by_day
 from shop.models import (
@@ -1788,6 +1791,47 @@ class StyleQuizViewTests(TestCase):
             ),
         )
 
+    def test_customer_product_views_are_aggregated(self):
+        category = Category.objects.create(name="Viewed products")
+        vendor = Vendor.objects.create(
+            name="Viewed product vendor",
+            contact_email="views@example.com",
+            approval_status=Vendor.ApprovalStatus.APPROVED,
+        )
+        product = Product.objects.create(
+            vendor=vendor,
+            category=category,
+            name="Viewed Jacket",
+            description="A viewed product.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+            is_active=True,
+            is_published=True,
+        )
+        ProductVariant.objects.create(
+            product=product,
+            sku="viewed-jacket-m",
+            size="M",
+            colour="Blue",
+            total_quantity=1,
+        )
+        product_url = reverse(
+            "customer:product_detail",
+            args=[product.pk],
+        )
+        self.client.force_login(self.customer)
+
+        self.client.get(product_url)
+        self.client.get(product_url)
+        self.client.logout()
+        self.client.get(product_url)
+
+        interaction = CustomerProductInteraction.objects.get(
+            customer=self.customer,
+            product=product,
+        )
+        self.assertEqual(interaction.view_count, 2)
+
     def test_for_you_filters_by_style_and_product_visibility(self):
         self.client.force_login(self.customer)
         CustomerStyleProfile.objects.create(
@@ -1873,12 +1917,106 @@ class StyleQuizViewTests(TestCase):
             total_quantity=1,
         )
 
+        out_of_stock = Product.objects.create(
+            vendor=vendor,
+            category=category,
+            name="Out of stock matching jacket",
+            description="Unavailable matching style.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+            is_active=True,
+            is_published=True,
+        )
+        out_of_stock.style_tags.add(
+            StyleTag.objects.get(slug="minimalist_clean")
+        )
+        ProductVariant.objects.create(
+            product=out_of_stock,
+            sku="out-of-stock-matching-jacket",
+            size="M",
+            colour="White",
+            total_quantity=0,
+        )
+
         response = self.client.get(reverse("customer:home"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, matching.name)
         self.assertNotContains(response, wrong_style.name)
         self.assertNotContains(response, blocked.name)
+        self.assertNotContains(response, out_of_stock.name)
+
+
+class RecommendationRankingTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        vendor = Vendor.objects.create(
+            name="Ranking Vendor",
+            contact_email="ranking@example.com",
+        )
+        category = Category.objects.create(name="Ranking Clothing")
+        cls.predicted_style = StyleTag.objects.get(
+            slug="minimalist_clean"
+        )
+        cls.completed_style = StyleTag.objects.get(
+            slug="urban_streetwear"
+        )
+
+        def create_product(name, style_tag):
+            product = Product.objects.create(
+                vendor=vendor,
+                category=category,
+                name=name,
+                description="Ranking test product.",
+                brand="Test",
+                daily_rate=Decimal("10.00"),
+            )
+            product.style_tags.add(style_tag)
+            return product
+
+        cls.predicted_product = create_product(
+            "Predicted Style Product",
+            cls.predicted_style,
+        )
+        cls.viewed_product = create_product(
+            "Viewed Product",
+            cls.completed_style,
+        )
+        cls.completed_style_product = create_product(
+            "Completed Style Product",
+            cls.completed_style,
+        )
+
+    def test_ranking_is_ml_led_capped_and_deterministic(self):
+        products = list(
+            Product.objects.filter(
+                pk__in={
+                    self.predicted_product.pk,
+                    self.viewed_product.pk,
+                    self.completed_style_product.pk,
+                }
+            ).prefetch_related("style_tags")
+        )
+        viewed_score = recommendation_score(
+            self.viewed_product,
+            predicted_style_id=self.predicted_style.pk,
+            view_count=100,
+        )
+        completed_score = recommendation_score(
+            self.completed_style_product,
+            predicted_style_id=self.predicted_style.pk,
+            completed_style_ids={self.completed_style.pk},
+        )
+        ranked = rank_recommended_products(
+            products,
+            predicted_style_id=self.predicted_style.pk,
+            view_counts={self.viewed_product.pk: 100},
+            completed_style_ids={self.completed_style.pk},
+        )
+
+        self.assertEqual(viewed_score, 10)
+        self.assertEqual(completed_score, 10)
+        self.assertEqual(ranked[0], self.predicted_product)
 
 
 class StylePredictionServiceTests(TestCase):

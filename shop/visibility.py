@@ -13,6 +13,7 @@ def visible_products():
             vendor__approval_status=Vendor.ApprovalStatus.APPROVED,
             vendor__is_suspended=False,
             variants__is_active=True,
+            variants__total_quantity__gt=0,
         )
         .select_related("vendor", "category")
         .prefetch_related(

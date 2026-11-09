@@ -5,15 +5,18 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
+from django.db.models import F, Prefetch, Q
 from django.http import Http404
-from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views import View
 
 from accounts.permissions import require_customer
+from accounts.roles import CUSTOMER_GROUP, role_for_user
 from recommendations.services import (
     StyleModelError,
     predict_style,
+    rank_recommended_products,
 )
 from shop.availability import available_quantity_by_day
 from shop.models import (
@@ -36,6 +39,7 @@ from .forms import (
     RentalSelectionForm,
     StyleQuizForm,
 )
+from .models import CustomerProductInteraction
 
 
 RENTAL_CART_SESSION_KEY = "rental_cart"
@@ -132,17 +136,39 @@ def customer_home(request):
     except CustomerStyleProfile.DoesNotExist:
         return redirect("customer:style_preferences")
 
-    available_products = (
-        visible_products()
-        .filter(style_tags=style_profile.predicted_style)
-        .order_by("-pk")
-        .distinct()
+    eligible_products = list(
+        visible_products().prefetch_related("style_tags")
     )
-    products = available_products[:8]
+    eligible_product_ids = [
+        product.pk
+        for product in eligible_products
+    ]
+    view_counts = dict(
+        CustomerProductInteraction.objects.filter(
+            customer=request.user,
+            product_id__in=eligible_product_ids,
+        ).values_list("product_id", "view_count")
+    )
+    completed_style_ids = set(
+        RentalItem.objects.filter(
+            order__customer=request.user,
+            status=RentalItem.Status.COMPLETED,
+            variant__product__style_tags__isnull=False,
+        ).values_list(
+            "variant__product__style_tags__pk",
+            flat=True,
+        )
+    )
+    products = rank_recommended_products(
+        eligible_products,
+        predicted_style_id=style_profile.predicted_style_id,
+        view_counts=view_counts,
+        completed_style_ids=completed_style_ids,
+    )
 
     featured_vendors = (
         Vendor.objects
-        .filter(products__in=available_products)
+        .filter(products__in=products)
         .order_by("name")
         .distinct()[:4]
     )
@@ -174,6 +200,25 @@ def product_detail(request, product_id):
         visible_products(),
         pk=product_id,
     )
+
+    if (
+        request.method == "GET"
+        and role_for_user(request.user) == CUSTOMER_GROUP
+    ):
+        interaction, created = (
+            CustomerProductInteraction.objects.get_or_create(
+                customer=request.user,
+                product=product,
+            )
+        )
+
+        if not created:
+            CustomerProductInteraction.objects.filter(
+                pk=interaction.pk
+            ).update(
+                view_count=F("view_count") + 1,
+                last_viewed_at=timezone.now(),
+            )
 
     rental_form = RentalSelectionForm(
         request.POST if request.method == "POST" else None,
