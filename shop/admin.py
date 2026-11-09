@@ -7,6 +7,7 @@ from .models import (
     Product,
     ProductImage,
     ProductVariant,
+    StyleTag,
     Vendor,
 )
 
@@ -36,3 +37,4 @@ class ProductAdmin(admin.ModelAdmin):
 
 admin.site.register(Vendor)
 admin.site.register(Category)
+admin.site.register(StyleTag)

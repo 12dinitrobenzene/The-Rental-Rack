@@ -21,10 +21,12 @@ class ProductForm(forms.ModelForm):
             "description",
             "daily_rate",
             "is_published",
+            "style_tags",
         ]
         labels = {
             "daily_rate": "Daily rental rate (SGD)",
             "is_published": "Publish this listing",
+            "style_tags": "Style tags",
         }
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
@@ -35,6 +37,9 @@ class ProductForm(forms.ModelForm):
             ),
             "daily_rate": forms.NumberInput(
                 attrs={"class": "form-control", "step": "0.01"}
+            ),
+            "style_tags": forms.SelectMultiple(
+                attrs={"class": "form-select"}
             ),
         }
 

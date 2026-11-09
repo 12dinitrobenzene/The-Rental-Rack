@@ -44,6 +44,17 @@ class Category(models.Model):
         return self.name
 
 
+class StyleTag(models.Model):
+    slug = models.SlugField(unique=True)
+    display_name = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ["display_name", "pk"]
+
+    def __str__(self):
+        return self.display_name
+
+
 class Product(models.Model):
     vendor = models.ForeignKey(
         Vendor,
@@ -54,6 +65,11 @@ class Product(models.Model):
         Category,
         on_delete=models.PROTECT,
         related_name="products",
+    )
+    style_tags = models.ManyToManyField(
+        StyleTag,
+        related_name="products",
+        blank=True,
     )
 
     name = models.CharField(max_length=150)
@@ -93,6 +109,33 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CustomerStyleProfile(models.Model):
+    customer = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="style_profile",
+    )
+
+    silhouette = models.CharField(max_length=50)
+    details = models.CharField(max_length=50)
+    impression = models.CharField(max_length=50)
+    styling_approach = models.CharField(max_length=50)
+    statement_level = models.CharField(max_length=20)
+    palette = models.CharField(max_length=30)
+
+    predicted_style = models.ForeignKey(
+        StyleTag,
+        on_delete=models.PROTECT,
+        related_name="customer_profiles",
+    )
+
+    model_version = models.CharField(max_length=30)
+    predicted_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Style profile for {self.customer}"
 
 
 class ProductVariant(models.Model):

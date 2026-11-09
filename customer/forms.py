@@ -201,3 +201,100 @@ class CheckoutForm(forms.Form):
             attrs={"class": "form-check-input"}
         ),
     )
+
+
+SILHOUETTE_CHOICES = (
+    ("clean_fitted", "Clean and fitted"),
+    ("tailored_structured", "Tailored and structured"),
+    ("oversized_relaxed", "Oversized and relaxed"),
+    ("soft_flowing", "Soft and flowing"),
+    ("sculptural_asymmetric", "Sculptural or asymmetric"),
+)
+
+DETAIL_CHOICES = (
+    ("minimal_details", "Minimal details"),
+    ("refined_details", "Refined details"),
+    ("graphic_details", "Graphic details"),
+    ("delicate_details", "Delicate details"),
+    ("experimental_details", "Experimental details"),
+)
+
+IMPRESSION_CHOICES = (
+    ("understated", "Understated"),
+    ("polished", "Polished"),
+    ("cool_urban", "Cool and urban"),
+    ("soft_playful", "Soft and playful"),
+    ("bold_unforgettable", "Bold and unforgettable"),
+)
+
+STYLING_APPROACH_CHOICES = (
+    ("simple_coordinated", "Simple and coordinated"),
+    ("timeless_balanced", "Timeless and balanced"),
+    ("layered_casual", "Layered and casual"),
+    ("decorative_mix", "Decorative mix"),
+    ("unexpected_contrast", "Unexpected contrasts"),
+)
+
+STATEMENT_LEVEL_CHOICES = (
+    ("low", "Low — I prefer subtle outfits"),
+    ("medium", "Medium — some statement pieces"),
+    ("high", "High — I want to stand out"),
+)
+
+PALETTE_CHOICES = (
+    ("neutral", "Neutral"),
+    ("dark", "Dark"),
+    ("earthy", "Earthy"),
+    ("pastel", "Pastel"),
+    ("bright_contrast", "Bright and contrasting"),
+)
+
+
+class StyleQuizForm(forms.Form):
+    silhouette = forms.ChoiceField(
+        label="Which silhouette feels most like you?",
+        choices=SILHOUETTE_CHOICES,
+        widget=forms.RadioSelect(
+            attrs={"class": "form-check-input"}
+        ),
+    )
+
+    details = forms.ChoiceField(
+        label="Which clothing details attract you most?",
+        choices=DETAIL_CHOICES,
+        widget=forms.RadioSelect(
+            attrs={"class": "form-check-input"}
+        ),
+    )
+
+    impression = forms.ChoiceField(
+        label="How do you want your outfit to make you feel?",
+        choices=IMPRESSION_CHOICES,
+        widget=forms.RadioSelect(
+            attrs={"class": "form-check-input"}
+        ),
+    )
+
+    styling_approach = forms.ChoiceField(
+        label="How do you prefer to put an outfit together?",
+        choices=STYLING_APPROACH_CHOICES,
+        widget=forms.RadioSelect(
+            attrs={"class": "form-check-input"}
+        ),
+    )
+
+    statement_level = forms.ChoiceField(
+        label="How much attention should your outfit attract?",
+        choices=STATEMENT_LEVEL_CHOICES,
+        widget=forms.RadioSelect(
+            attrs={"class": "form-check-input"}
+        ),
+    )
+
+    palette = forms.ChoiceField(
+        label="Which colour palette would you most likely wear?",
+        choices=PALETTE_CHOICES,
+        widget=forms.RadioSelect(
+            attrs={"class": "form-check-input"}
+        ),
+    )

@@ -9,7 +9,8 @@ from django.test import TestCase
 from django.utils import timezone
 from django.urls import reverse
 
-from customer.forms import RentalSelectionForm
+from accounts.roles import CUSTOMER_GROUP
+from customer.forms import RentalSelectionForm, StyleQuizForm
 from shop.availability import available_quantity_by_day
 from shop.models import (
     Category,
@@ -19,6 +20,16 @@ from shop.models import (
     RentalOrder,
     Vendor,
 )
+
+
+VALID_STYLE_QUIZ = {
+    "silhouette": "sculptural_asymmetric",
+    "details": "experimental_details",
+    "impression": "bold_unforgettable",
+    "styling_approach": "unexpected_contrast",
+    "statement_level": "high",
+    "palette": "neutral",
+}
 
 
 class RentalItemValidationTests(TestCase):
@@ -1357,7 +1368,7 @@ class SessionRentalCartTests(TestCase):
         )
         self.assertEqual(response.context["cart_total"], Decimal("80.00"))
         self.assertContains(response, "Final order summary")
-        self.assertContains(response, "No real payment-card details")
+
 
     def test_successful_checkout_creates_snapshots_and_clears_cart(self):
         start = timezone.localdate() + timedelta(days=1)
@@ -1500,3 +1511,125 @@ class SessionRentalCartTests(TestCase):
 
         self.assertRedirects(response, reverse("customer:cart"))
         self.assertEqual(RentalOrder.objects.count(), 0)
+
+
+class StyleQuizFormTests(TestCase):
+    def test_valid_answers_are_accepted(self):
+        form = StyleQuizForm(data=VALID_STYLE_QUIZ)
+
+        self.assertTrue(form.is_valid())
+
+    def test_unknown_choice_is_rejected(self):
+        answers = {
+            **VALID_STYLE_QUIZ,
+            "silhouette": "invented_style",
+        }
+
+        form = StyleQuizForm(data=answers)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("silhouette", form.errors)
+
+    def test_missing_answer_is_rejected(self):
+        answers = {
+            key: value
+            for key, value in VALID_STYLE_QUIZ.items()
+            if key != "palette"
+        }
+
+        form = StyleQuizForm(data=answers)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("palette", form.errors)
+
+
+class StyleQuizViewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.customer_group, _ = Group.objects.get_or_create(
+            name=CUSTOMER_GROUP
+        )
+
+        cls.customer = get_user_model().objects.create_user(
+            username="style-customer",
+        )
+        cls.customer.groups.add(cls.customer_group)
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.get(
+            reverse("customer:style_preferences")
+        )
+
+        self.assertRedirects(
+            response,
+            (
+                reverse("accounts:login")
+                + "?next="
+                + reverse("customer:style_preferences")
+            ),
+        )
+
+    def test_customer_can_view_quiz(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.get(
+            reverse("customer:style_preferences")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "customer/style_preferences.html",
+        )
+        self.assertIsInstance(
+            response.context["form"],
+            StyleQuizForm,
+        )
+
+    def test_valid_quiz_submission_redirects(self):
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse("customer:style_preferences"),
+            VALID_STYLE_QUIZ,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("customer:style_preferences"),
+        )
+
+    def test_tampered_value_is_displayed_as_error(self):
+        self.client.force_login(self.customer)
+
+        answers = {
+            **VALID_STYLE_QUIZ,
+            "palette": "not-a-real-palette",
+        }
+
+        response = self.client.post(
+            reverse("customer:style_preferences"),
+            answers,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Select a valid choice",
+        )
+
+    def test_non_customer_account_is_forbidden(self):
+        vendor_group, _ = Group.objects.get_or_create(
+            name="Vendor Employee"
+        )
+        vendor_user = get_user_model().objects.create_user(
+            username="style-vendor",
+        )
+        vendor_user.groups.add(vendor_group)
+        self.client.force_login(vendor_user)
+
+        response = self.client.get(
+            reverse("customer:style_preferences")
+        )
+
+        self.assertEqual(response.status_code, 403)

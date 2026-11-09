@@ -10,6 +10,7 @@ from accounts.models import VendorEmployee
 from shop.availability import available_quantity_by_day
 from shop.models import (
     Category,
+    CustomerStyleProfile,
     Product,
     ProductVariant,
     RentalItem,
@@ -17,6 +18,7 @@ from shop.models import (
     RentalReturn,
     RentalSettlement,
     ReturnInspection,
+    StyleTag,
     Vendor,
 )
 
@@ -102,6 +104,23 @@ class RentalLifecycleModelTests(TestCase):
         self.item.transition_to(RentalItem.Status.RETURNED)
 
         self.assertEqual(self.item.status, RentalItem.Status.RETURNED)
+
+    def test_customer_style_profile_is_one_to_one_with_customer(self):
+        style_tag = StyleTag.objects.get(slug="minimalist_clean")
+        profile = CustomerStyleProfile.objects.create(
+            customer=self.customer,
+            silhouette="clean_fitted",
+            details="minimal_details",
+            impression="understated",
+            styling_approach="simple_coordinated",
+            statement_level="low",
+            palette="neutral",
+            predicted_style=style_tag,
+            model_version="v1",
+        )
+
+        self.assertEqual(self.customer.style_profile, profile)
+        self.assertEqual(profile.predicted_style, style_tag)
 
     def test_invalid_status_transition_is_rejected(self):
         with self.assertRaises(ValidationError) as raised:

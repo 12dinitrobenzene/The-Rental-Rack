@@ -20,6 +20,7 @@ from shop.models import (
     RentalReturn,
     RentalSettlement,
     ReturnInspection,
+    StyleTag,
     Vendor,
 )
 from vendor_portal.forms import ProductForm, ProductImageForm, ProductVariantForm
@@ -211,6 +212,39 @@ class EmployeeHomeTests(TestCase):
                 "description",
                 "daily_rate",
                 "is_published",
+                "style_tags",
+            },
+        )
+
+    def test_employee_product_form_assigns_style_tags(self):
+        style_tag = StyleTag.objects.get(slug="minimalist_clean")
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vendor_portal:product_create"),
+            {
+                "name": "Tagged product",
+                "category": self.category.pk,
+                "brand": "Vendor brand",
+                "description": "A style-tagged product.",
+                "daily_rate": "15.00",
+                "style_tags": [style_tag.pk],
+            },
+        )
+
+        self.assertRedirects(response, reverse("vendor_portal:home"))
+        product = Product.objects.get(name="Tagged product")
+        self.assertEqual(list(product.style_tags.all()), [style_tag])
+
+    def test_shared_style_tags_are_seeded(self):
+        self.assertEqual(
+            set(StyleTag.objects.values_list("slug", flat=True)),
+            {
+                "minimalist_clean",
+                "classic_polished",
+                "urban_streetwear",
+                "romantic_expressive",
+                "avant_garde_statement",
             },
         )
 

@@ -590,6 +590,7 @@ def employee_product_create(request):
         # A newly created listing is eligible to be published by its employee.
         product.is_active = True
         product.save()
+        form.save_m2m()
         messages.success(request, "Product created.")
         return redirect("vendor_portal:home")
 

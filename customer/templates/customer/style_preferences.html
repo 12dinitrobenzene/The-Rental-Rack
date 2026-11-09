@@ -1,0 +1,63 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}Style Quiz | Clothing Store{% endblock %}
+
+{% block content %}
+<section class="py-5">
+    <div class="mx-auto" style="max-width: 48rem;">
+        <p class="text-uppercase small text-muted mb-2">
+            Style profile
+        </p>
+
+        <h1 class="mb-3">Discover your style</h1>
+
+        <p class="text-muted mb-4">
+            Answer all six questions to receive personalised
+            clothing recommendations.
+        </p>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% for field in form %}
+                <fieldset class="border rounded p-4 mb-4">
+                    <legend class="h5 mb-3">
+                        {{ forloop.counter }}. {{ field.label }}
+                    </legend>
+
+                    {% for option in field %}
+                        <div class="form-check mb-2">
+                            {{ option.tag }}
+
+                            <label class="form-check-label"
+                                   for="{{ option.id_for_label }}">
+                                {{ option.choice_label }}
+                            </label>
+                        </div>
+                    {% endfor %}
+
+                    {% if field.errors %}
+                        <div class="text-danger mt-2" role="alert">
+                            {% for error in field.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </fieldset>
+            {% endfor %}
+
+            <button type="submit" class="btn btn-dark">
+                Get my recommendations
+            </button>
+        </form>
+    </div>
+</section>
+{% endblock %}
