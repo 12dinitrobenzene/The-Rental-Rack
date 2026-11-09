@@ -11,13 +11,19 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
 from accounts.permissions import require_customer
+from recommendations.services import (
+    StyleModelError,
+    predict_style,
+)
 from shop.availability import available_quantity_by_day
 from shop.models import (
     Category,
+    CustomerStyleProfile,
     Product,
     ProductVariant,
     RentalItem,
     RentalOrder,
+    StyleTag,
     Vendor,
 )
 from shop.rental_rules import calculate_rental_totals
@@ -113,13 +119,33 @@ def catalogue(request):
     )
 
 
+@login_required(login_url="accounts:login")
 def customer_home(request):
-    # Temporary selection until ML workflow is done ok - ck
-    available_products = visible_products().order_by("-pk")
+    require_customer(request.user)
+
+    try:
+        style_profile = (
+            CustomerStyleProfile.objects
+            .select_related("predicted_style")
+            .get(customer=request.user)
+        )
+    except CustomerStyleProfile.DoesNotExist:
+        return redirect("customer:style_preferences")
+
+    available_products = (
+        visible_products()
+        .filter(style_tags=style_profile.predicted_style)
+        .order_by("-pk")
+        .distinct()
+    )
     products = available_products[:8]
-    featured_vendors = Vendor.objects.filter(
-        products__in=available_products,
-    ).order_by("name").distinct()[:4]
+
+    featured_vendors = (
+        Vendor.objects
+        .filter(products__in=available_products)
+        .order_by("name")
+        .distinct()[:4]
+    )
 
     return render(
         request,
@@ -127,6 +153,7 @@ def customer_home(request):
         {
             "products": products,
             "featured_vendors": featured_vendors,
+            "style_profile": style_profile,
         },
     )
 
@@ -591,13 +618,54 @@ def style_preferences(request):
         form = StyleQuizForm(request.POST)
 
         if form.is_valid():
-            # F42 model prediction and profile persistence will be added here.
-            messages.success(
-                request,
-                "Your style quiz answers were submitted successfully.",
-            )
+            try:
+                prediction = predict_style(form.cleaned_data)
 
-            return redirect("customer:style_preferences")
+                style_tag = StyleTag.objects.get(
+                    slug=prediction["style"]
+                )
+            except StyleTag.DoesNotExist:
+                form.add_error(
+                    None,
+                    "The predicted style is not configured.",
+                )
+            except StyleModelError:
+                form.add_error(
+                    None,
+                    (
+                        "Style recommendations are temporarily "
+                        "unavailable. Please try again later."
+                    ),
+                )
+            else:
+                CustomerStyleProfile.objects.update_or_create(
+                    customer=request.user,
+                    defaults={
+                        "silhouette": form.cleaned_data["silhouette"],
+                        "details": form.cleaned_data["details"],
+                        "impression": form.cleaned_data["impression"],
+                        "styling_approach": (
+                            form.cleaned_data["styling_approach"]
+                        ),
+                        "statement_level": (
+                            form.cleaned_data["statement_level"]
+                        ),
+                        "palette": form.cleaned_data["palette"],
+                        "predicted_style": style_tag,
+                        "model_version": prediction["model_version"],
+                    },
+                )
+
+                messages.success(
+                    request,
+                    (
+                        "Your style profile has been updated. "
+                        f"We identified your style as "
+                        f"{style_tag.display_name}."
+                    ),
+                )
+
+                return redirect("customer:home")
     else:
         form = StyleQuizForm()
 

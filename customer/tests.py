@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -11,13 +13,21 @@ from django.urls import reverse
 
 from accounts.roles import CUSTOMER_GROUP
 from customer.forms import RentalSelectionForm, StyleQuizForm
+from recommendations.services import (
+    EXPECTED_LABELS,
+    StyleModelError,
+    load_style_artifact,
+    predict_style,
+)
 from shop.availability import available_quantity_by_day
 from shop.models import (
     Category,
+    CustomerStyleProfile,
     Product,
     ProductVariant,
     RentalItem,
     RentalOrder,
+    StyleTag,
     Vendor,
 )
 
@@ -452,6 +462,24 @@ class CatalogueFilterTests(TestCase):
 
 class PublicProductVisibilityTests(TestCase):
     def setUp(self):
+        customer_group, _ = Group.objects.get_or_create(name=CUSTOMER_GROUP)
+        self.customer = get_user_model().objects.create_user(
+            username="visibility-customer",
+        )
+        self.customer.groups.add(customer_group)
+        self.client.force_login(self.customer)
+        style_tag = StyleTag.objects.get(slug="minimalist_clean")
+        CustomerStyleProfile.objects.create(
+            customer=self.customer,
+            silhouette="clean_fitted",
+            details="minimal_details",
+            impression="understated",
+            styling_approach="simple_coordinated",
+            statement_level="low",
+            palette="neutral",
+            predicted_style=style_tag,
+            model_version="test",
+        )
         self.vendor = Vendor.objects.create(
             name="Visibility Test Vendor",
             contact_email="visibility@example.com",
@@ -470,6 +498,7 @@ class PublicProductVisibilityTests(TestCase):
             is_active=True,
             is_published=True,
         )
+        self.product.style_tags.add(style_tag)
 
         self.variant = ProductVariant.objects.create(
             product=self.product,
@@ -1589,14 +1618,116 @@ class StyleQuizViewTests(TestCase):
     def test_valid_quiz_submission_redirects(self):
         self.client.force_login(self.customer)
 
-        response = self.client.post(
-            reverse("customer:style_preferences"),
-            VALID_STYLE_QUIZ,
-        )
+        with patch(
+            "customer.views.predict_style",
+            return_value={
+                "style": "avant_garde_statement",
+                "model_version": "test-version",
+            },
+        ):
+            response = self.client.post(
+                reverse("customer:style_preferences"),
+                VALID_STYLE_QUIZ,
+            )
 
         self.assertRedirects(
             response,
-            reverse("customer:style_preferences"),
+            reverse("customer:home"),
+        )
+        self.assertEqual(
+            self.customer.style_profile.predicted_style.slug,
+            "avant_garde_statement",
+        )
+
+    def test_retaking_quiz_updates_existing_profile(self):
+        self.client.force_login(self.customer)
+
+        with patch(
+            "customer.views.predict_style",
+            return_value={
+                "style": "avant_garde_statement",
+                "model_version": "test-version",
+            },
+        ):
+            self.client.post(
+                reverse("customer:style_preferences"),
+                VALID_STYLE_QUIZ,
+            )
+
+        second_answers = {
+            "silhouette": "clean_fitted",
+            "details": "minimal_details",
+            "impression": "understated",
+            "styling_approach": "simple_coordinated",
+            "statement_level": "low",
+            "palette": "neutral",
+        }
+
+        with patch(
+            "customer.views.predict_style",
+            return_value={
+                "style": "minimalist_clean",
+                "model_version": "test-version",
+            },
+        ):
+            self.client.post(
+                reverse("customer:style_preferences"),
+                second_answers,
+            )
+
+        self.assertEqual(
+            CustomerStyleProfile.objects.filter(
+                customer=self.customer
+            ).count(),
+            1,
+        )
+        self.customer.refresh_from_db()
+        self.assertEqual(
+            self.customer.style_profile.silhouette,
+            "clean_fitted",
+        )
+
+    def test_missing_model_shows_error_without_saving_profile(self):
+        self.client.force_login(self.customer)
+
+        with patch(
+            "customer.views.predict_style",
+            side_effect=StyleModelError("missing model"),
+        ):
+            response = self.client.post(
+                reverse("customer:style_preferences"),
+                VALID_STYLE_QUIZ,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "temporarily unavailable")
+        self.assertFalse(
+            CustomerStyleProfile.objects.filter(
+                customer=self.customer
+            ).exists()
+        )
+
+    def test_missing_predicted_style_tag_shows_error_without_saving(self):
+        self.client.force_login(self.customer)
+
+        with patch(
+            "customer.views.predict_style",
+            return_value={
+                "style": "unconfigured_style",
+                "model_version": "test-version",
+            },
+        ):
+            response = self.client.post(
+                reverse("customer:style_preferences"),
+                VALID_STYLE_QUIZ,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "predicted style is not configured")
+        self.assertFalse(
+            CustomerStyleProfile.objects.filter(
+                customer=self.customer
+            ).exists()
         )
 
     def test_tampered_value_is_displayed_as_error(self):
@@ -1633,3 +1764,140 @@ class StyleQuizViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+
+    def test_customer_without_profile_is_redirected_to_quiz(self):
+        CustomerStyleProfile.objects.filter(customer=self.customer).delete()
+        self.client.force_login(self.customer)
+
+        response = self.client.get(reverse("customer:home"))
+
+        self.assertRedirects(
+            response,
+            reverse("customer:style_preferences"),
+        )
+
+    def test_anonymous_user_is_redirected_from_for_you(self):
+        response = self.client.get(reverse("customer:home"))
+
+        self.assertRedirects(
+            response,
+            (
+                reverse("accounts:login")
+                + "?next="
+                + reverse("customer:home")
+            ),
+        )
+
+    def test_for_you_filters_by_style_and_product_visibility(self):
+        self.client.force_login(self.customer)
+        CustomerStyleProfile.objects.create(
+            customer=self.customer,
+            silhouette="clean_fitted",
+            details="minimal_details",
+            impression="understated",
+            styling_approach="simple_coordinated",
+            statement_level="low",
+            palette="neutral",
+            predicted_style=StyleTag.objects.get(
+                slug="minimalist_clean"
+            ),
+            model_version="test",
+        )
+        category = Category.objects.create(name="Style recommendation")
+        vendor = Vendor.objects.create(
+            name="Style recommendation vendor",
+            contact_email="style-products@example.com",
+            approval_status=Vendor.ApprovalStatus.APPROVED,
+        )
+        matching = Product.objects.create(
+            vendor=vendor,
+            category=category,
+            name="Matching style jacket",
+            description="Matching style.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+            is_active=True,
+            is_published=True,
+        )
+        matching.style_tags.add(
+            StyleTag.objects.get(slug="minimalist_clean")
+        )
+        ProductVariant.objects.create(
+            product=matching,
+            sku="matching-style-jacket",
+            size="M",
+            colour="Blue",
+            total_quantity=1,
+        )
+
+        wrong_style = Product.objects.create(
+            vendor=vendor,
+            category=category,
+            name="Wrong style jacket",
+            description="Wrong style.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+            is_active=True,
+            is_published=True,
+        )
+        wrong_style.style_tags.add(
+            StyleTag.objects.get(slug="urban_streetwear")
+        )
+        ProductVariant.objects.create(
+            product=wrong_style,
+            sku="wrong-style-jacket",
+            size="M",
+            colour="Black",
+            total_quantity=1,
+        )
+
+        blocked = Product.objects.create(
+            vendor=vendor,
+            category=category,
+            name="Blocked matching jacket",
+            description="Blocked matching style.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+            is_active=True,
+            is_published=True,
+            moderation_blocked=True,
+        )
+        blocked.style_tags.add(
+            StyleTag.objects.get(slug="minimalist_clean")
+        )
+        ProductVariant.objects.create(
+            product=blocked,
+            sku="blocked-matching-jacket",
+            size="M",
+            colour="Green",
+            total_quantity=1,
+        )
+
+        response = self.client.get(reverse("customer:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, matching.name)
+        self.assertNotContains(response, wrong_style.name)
+        self.assertNotContains(response, blocked.name)
+
+
+class StylePredictionServiceTests(TestCase):
+    def tearDown(self):
+        load_style_artifact.cache_clear()
+
+    def test_real_saved_model_returns_supported_style(self):
+        result = predict_style(VALID_STYLE_QUIZ)
+
+        self.assertIn(result["style"], EXPECTED_LABELS)
+        self.assertTrue(result["model_version"])
+
+    def test_missing_model_file_raises_style_model_error(self):
+        with TemporaryDirectory() as temporary_directory:
+            missing_path = Path(temporary_directory) / "missing.joblib"
+
+            with patch(
+                "recommendations.services.MODEL_PATH",
+                missing_path,
+            ):
+                with self.assertRaises(StyleModelError):
+                    load_style_artifact()
