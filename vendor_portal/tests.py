@@ -82,6 +82,18 @@ class EmployeeHomeTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("accounts:login"), response.url)
 
+    def test_workspace_uses_the_rental_order_queue(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertContains(
+            response,
+            reverse("vendor_portal:rental_order_list"),
+        )
+        self.assertContains(response, "Rental orders")
+        self.assertNotContains(response, "Rental fulfilment")
+
     def test_employee_sees_only_products_owned_by_their_vendor(self):
         own_product = self.create_product(
             self.vendor,
@@ -542,14 +554,13 @@ class RentalSettlementWorkflowTests(TestCase):
         self.assertContains(response, "Settlement Jacket")
         self.assertContains(response, "Ready for reuse")
         self.assertContains(response, "Complete and record settlement")
-
-    def test_employee_workspace_lists_only_own_vendor_rentals(self):
-        self.client.force_login(self.employee_user)
-
-        response = self.client.get(reverse("vendor_portal:home"))
-
-        self.assertContains(response, "Settlement Jacket")
-        self.assertNotContains(response, "Other Settlement Jacket")
+        self.assertContains(
+            response,
+            reverse(
+                "vendor_portal:order_detail",
+                args=[self.order.pk],
+            ),
+        )
 
     def test_completion_creates_exact_20_80_settlement(self):
         self.client.force_login(self.employee_user)

@@ -3,8 +3,8 @@
 {% block title %}Rental item #{{ rental_item.pk }} | {{ vendor.name }}{% endblock %}
 
 {% block content %}
-<a class="link-secondary" href="{% url 'vendor_portal:home' %}#rental-fulfilment">
-    Back to rental fulfilment
+<a class="link-secondary" href="{% url 'vendor_portal:order_detail' rental_item.order_id %}">
+    Back to order #{{ rental_item.order_id }}
 </a>
 
 <header class="my-4">
