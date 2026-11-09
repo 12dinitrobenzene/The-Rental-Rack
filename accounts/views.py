@@ -27,7 +27,7 @@ from shop.models import Vendor
 def register(request):
     if request.user.is_authenticated:
         destination = destination_for_user(request.user)
-        return redirect(destination or "customer:home")
+        return redirect(destination or "landing")
 
     return render(request, "accounts/register_choice.html")
 
@@ -35,7 +35,7 @@ def register(request):
 def register_customer(request):
     if request.user.is_authenticated:
         destination = destination_for_user(request.user)
-        return redirect(destination or "customer:home")
+        return redirect(destination or "landing")
 
     if request.method == "POST":
         form = CustomerRegistrationForm(request.POST)
@@ -61,7 +61,7 @@ def register_customer(request):
 def register_vendor(request):
     if request.user.is_authenticated:
         destination = destination_for_user(request.user)
-        return redirect(destination or "customer:home")
+        return redirect(destination or "landing")
 
     form = VendorRegistrationForm(request.POST or None)
 

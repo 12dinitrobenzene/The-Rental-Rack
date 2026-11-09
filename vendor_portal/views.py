@@ -148,17 +148,6 @@ def employee_home(request):
         product.total_stock = product.total_stock or 0
         product.status_label, product.status_style = inventory_status(product)
 
-    rental_items = (
-        RentalItem.objects.filter(order__vendor=employee.vendor)
-        .select_related(
-            "order",
-            "order__customer",
-            "variant",
-            "settlement",
-        )
-        .order_by("-order__created_at", "pk")
-    )
-
     return render(
         request,
         "vendor_portal/home.html",
@@ -166,7 +155,6 @@ def employee_home(request):
             "vendor": employee.vendor,
             "employee": employee,
             "products": products,
-            "rental_items": rental_items,
         },
     )
 

@@ -77,7 +77,7 @@ class CustomerRegistrationTests(TestCase):
 
         response = self.client.get(self.url)
 
-        self.assertRedirects(response, reverse("customer:home"))
+        self.assertRedirects(response, reverse("landing"))
 
 
 class VendorRegistrationTests(TestCase):
