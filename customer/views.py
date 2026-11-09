@@ -422,9 +422,15 @@ class WishlistAddView(LoginRequiredMixin, View):
         )
 
         if created:
-            messages.success(request, f"{product.name} was saved.")
+            messages.success(
+                request,
+                f"{product.name} was added to your wishlist.",
+            )
         else:
-            messages.info(request, f"{product.name} is already saved.")
+            messages.info(
+                request,
+                f"{product.name} is already in your wishlist.",
+            )
 
         return _redirect_after_wishlist_action(request)
 
