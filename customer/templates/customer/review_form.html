@@ -1,0 +1,54 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}Review {{ product.name }} | Clothing Store{% endblock %}
+
+{% block content %}
+<a href="{% url 'customer:order_detail' rental_item.order_id %}">
+    Back to order #{{ rental_item.order_id }}
+</a>
+
+<div class="row justify-content-center mt-4">
+    <div class="col-lg-7">
+        <h1>Review {{ product.name }}</h1>
+        <p class="text-muted">
+            {{ rental_item.variant.size }} / {{ rental_item.variant.colour }}
+            · Rented {{ rental_item.rental_start_date|date:"d M Y" }}
+            to {{ rental_item.rental_end_date|date:"d M Y" }}
+        </p>
+
+        <form method="post" class="border rounded p-4 mt-4">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="mb-3">
+                <label class="form-label" for="{{ form.rating.id_for_label }}">
+                    {{ form.rating.label }}
+                </label>
+                {{ form.rating }}
+                {% for error in form.rating.errors %}
+                    <p class="text-danger mt-1 mb-0">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="{{ form.review_text.id_for_label }}">
+                    {{ form.review_text.label }}
+                </label>
+                {{ form.review_text }}
+                {% for error in form.review_text.errors %}
+                    <p class="text-danger mt-1 mb-0">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <button class="btn btn-dark" type="submit">
+                Submit review
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

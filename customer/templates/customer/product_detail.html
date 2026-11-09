@@ -283,6 +283,41 @@
     </section>
 </article>
 
+<section class="border-top pt-4 mt-5" id="reviews">
+    <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-4">
+        <h2 class="mb-0">Customer reviews</h2>
+        {% if review_count %}
+            <p class="mb-0 fw-semibold">
+                {{ average_rating|floatformat:1 }} / 5
+                from {{ review_count }} review{{ review_count|pluralize }}
+            </p>
+        {% endif %}
+    </div>
+
+    {% for review in reviews %}
+        <article class="border rounded p-3 mb-3">
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+                <strong>{{ review.rating }} / 5</strong>
+                <span class="text-muted">
+                    {{ review.created_at|date:"d M Y" }}
+                </span>
+            </div>
+            <p class="text-muted mb-2">
+                {% if review.rental_item.order.customer.get_full_name %}
+                    {{ review.rental_item.order.customer.get_full_name }}
+                {% else %}
+                    {{ review.rental_item.order.customer.username }}
+                {% endif %}
+            </p>
+            <p class="mb-0">{{ review.review_text|linebreaksbr }}</p>
+        </article>
+    {% empty %}
+        <p class="text-muted">
+            No reviews yet. Completed renters can be the first to review this product.
+        </p>
+    {% endfor %}
+</section>
+
 {% if related_products %}
 <section class="related-products">
     <div class="d-flex justify-content-between align-items-center mb-4">

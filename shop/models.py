@@ -409,6 +409,41 @@ class RentalItem(models.Model):
         return f"{self.product_name_snapshot} × {self.quantity}"
 
 
+class ProductReview(models.Model):
+    rental_item = models.OneToOneField(
+        RentalItem,
+        on_delete=models.CASCADE,
+        related_name="review",
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(5),
+        ],
+    )
+    review_text = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(rating__gte=1)
+                    & models.Q(rating__lte=5)
+                ),
+                name="product_review_rating_1_to_5",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.rating}/5 review for "
+            f"{self.rental_item.product_name_snapshot}"
+        )
+
+
 class RentalReturn(models.Model):
     rental_item = models.OneToOneField(
         RentalItem,

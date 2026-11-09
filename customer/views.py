@@ -4,8 +4,8 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import transaction
-from django.db.models import F, Prefetch, Q
+from django.db import IntegrityError, transaction
+from django.db.models import Avg, Count, F, Prefetch, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -24,6 +24,7 @@ from shop.models import (
     Category,
     CustomerStyleProfile,
     Product,
+    ProductReview,
     ProductVariant,
     RentalItem,
     RentalOrder,
@@ -37,6 +38,7 @@ from .forms import (
     CartUpdateForm,
     CatalogueFilterForm,
     CheckoutForm,
+    ProductReviewForm,
     RentalSelectionForm,
     StyleQuizForm,
 )
@@ -364,6 +366,16 @@ def product_detail(request, product_id):
         else ""
     )
 
+    reviews = ProductReview.objects.filter(
+        rental_item__variant__product=product,
+    ).select_related(
+        "rental_item__order__customer",
+    )
+    review_summary = reviews.aggregate(
+        average_rating=Avg("rating"),
+        review_count=Count("pk"),
+    )
+
     return render(
         request,
         "customer/product_detail.html",
@@ -375,6 +387,8 @@ def product_detail(request, product_id):
             "default_colour": default_colour,
             "rental_form": rental_form,
             "rental_result": rental_result,
+            "reviews": reviews,
+            **review_summary,
         },
     )
 
@@ -879,7 +893,10 @@ def _orders_for_customer(user):
         .prefetch_related(
             Prefetch(
                 "items",
-                queryset=RentalItem.objects.select_related("variant"),
+                queryset=RentalItem.objects.select_related(
+                    "variant__product",
+                    "review",
+                ),
             )
         )
     )
@@ -922,6 +939,13 @@ def order_detail(request, order_id):
         pk=order_id,
     )
 
+    for item in order.items.all():
+        item.review_submitted = hasattr(item, "review")
+        item.can_review = (
+            item.status == RentalItem.Status.COMPLETED
+            and not item.review_submitted
+        )
+
     return render(
         request,
         "customer/order_detail.html",
@@ -930,6 +954,103 @@ def order_detail(request, order_id):
             "can_cancel": _can_cancel_order(order),
         },
     )
+
+
+class ReviewCreateView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+
+    def _rental_item(self, request, rental_item_id):
+        require_customer(request.user)
+        return get_object_or_404(
+            RentalItem.objects.select_related(
+                "order",
+                "variant__product",
+            ),
+            pk=rental_item_id,
+            order__customer=request.user,
+            order__payment_status=RentalOrder.PaymentStatus.PAID,
+            status=RentalItem.Status.COMPLETED,
+        )
+
+    def _already_reviewed(self, request, rental_item):
+        if not ProductReview.objects.filter(
+            rental_item=rental_item,
+        ).exists():
+            return None
+
+        messages.info(
+            request,
+            "You have already reviewed this rental item.",
+        )
+        return redirect(
+            "customer:product_detail",
+            product_id=rental_item.variant.product_id,
+        )
+
+    def get(self, request, rental_item_id):
+        rental_item = self._rental_item(request, rental_item_id)
+        reviewed_response = self._already_reviewed(
+            request,
+            rental_item,
+        )
+
+        if reviewed_response:
+            return reviewed_response
+
+        return render(
+            request,
+            "customer/review_form.html",
+            {
+                "form": ProductReviewForm(),
+                "rental_item": rental_item,
+                "product": rental_item.variant.product,
+            },
+        )
+
+    def post(self, request, rental_item_id):
+        rental_item = self._rental_item(request, rental_item_id)
+        reviewed_response = self._already_reviewed(
+            request,
+            rental_item,
+        )
+
+        if reviewed_response:
+            return reviewed_response
+
+        form = ProductReviewForm(request.POST)
+
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.rental_item = rental_item
+
+            try:
+                with transaction.atomic():
+                    review.save()
+            except IntegrityError:
+                messages.info(
+                    request,
+                    "You have already reviewed this rental item.",
+                )
+            else:
+                messages.success(
+                    request,
+                    "Your review was submitted.",
+                )
+
+            return redirect(
+                "customer:product_detail",
+                product_id=rental_item.variant.product_id,
+            )
+
+        return render(
+            request,
+            "customer/review_form.html",
+            {
+                "form": form,
+                "rental_item": rental_item,
+                "product": rental_item.variant.product,
+            },
+        )
 
 
 class OrderCancelView(LoginRequiredMixin, View):

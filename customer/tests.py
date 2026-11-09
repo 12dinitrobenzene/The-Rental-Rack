@@ -27,6 +27,7 @@ from shop.models import (
     Category,
     CustomerStyleProfile,
     Product,
+    ProductReview,
     ProductVariant,
     RentalItem,
     RentalOrder,
@@ -2175,3 +2176,198 @@ class StylePredictionServiceTests(TestCase):
             ):
                 with self.assertRaises(StyleModelError):
                     load_style_artifact()
+
+
+class ProductReviewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        customer_group, _ = Group.objects.get_or_create(
+            name=CUSTOMER_GROUP,
+        )
+        User = get_user_model()
+        cls.customer = User.objects.create_user(
+            username="review-customer",
+            password="test-password",
+        )
+        cls.other_customer = User.objects.create_user(
+            username="other-review-customer",
+            password="test-password",
+        )
+        cls.customer.groups.add(customer_group)
+        cls.other_customer.groups.add(customer_group)
+
+        cls.vendor = Vendor.objects.create(
+            name="Review Vendor",
+            contact_email="reviews@example.com",
+            approval_status=Vendor.ApprovalStatus.APPROVED,
+        )
+        category = Category.objects.create(name="Review Clothing")
+        cls.product = Product.objects.create(
+            vendor=cls.vendor,
+            category=category,
+            name="Review Jacket",
+            description="A jacket customers can review.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+            is_active=True,
+            is_published=True,
+        )
+        cls.variant = ProductVariant.objects.create(
+            product=cls.product,
+            sku="review-jacket-m",
+            size="M",
+            colour="Blue",
+            total_quantity=3,
+        )
+        cls.order = cls._create_order(cls.customer)
+        cls.completed_item = cls._create_item(
+            cls.order,
+            RentalItem.Status.COMPLETED,
+        )
+        cls.active_item = cls._create_item(
+            cls.order,
+            RentalItem.Status.ACTIVE,
+        )
+        cls.other_order = cls._create_order(cls.other_customer)
+        cls.other_completed_item = cls._create_item(
+            cls.other_order,
+            RentalItem.Status.COMPLETED,
+        )
+
+    @classmethod
+    def _create_order(cls, customer):
+        return RentalOrder.objects.create(
+            customer=customer,
+            vendor=cls.vendor,
+            delivery_address="1 Review Street",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=Decimal("10.00"),
+        )
+
+    @classmethod
+    def _create_item(cls, order, status):
+        rental_date = date.today()
+        return RentalItem.objects.create(
+            order=order,
+            variant=cls.variant,
+            product_name_snapshot=cls.product.name,
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=rental_date,
+            rental_end_date=rental_date,
+            rental_days=1,
+            line_total=Decimal("10.00"),
+            status=status,
+        )
+
+    def test_only_owner_of_completed_item_can_submit_once(self):
+        review_url = reverse(
+            "customer:review_create",
+            args=[self.completed_item.pk],
+        )
+        review_data = {
+            "rating": 5,
+            "review_text": "Excellent condition and a great fit.",
+        }
+
+        self.assertEqual(self.client.get(review_url).status_code, 302)
+
+        self.client.force_login(self.customer)
+        response = self.client.post(review_url, review_data)
+
+        self.assertRedirects(
+            response,
+            reverse("customer:product_detail", args=[self.product.pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(
+            ProductReview.objects.filter(
+                rental_item=self.completed_item,
+            ).count(),
+            1,
+        )
+
+        duplicate_response = self.client.post(
+            review_url,
+            review_data,
+            follow=True,
+        )
+        self.assertContains(
+            duplicate_response,
+            "already reviewed this rental item",
+        )
+        self.assertEqual(ProductReview.objects.count(), 1)
+        self.assertEqual(
+            self.client.post(
+                reverse(
+                    "customer:review_create",
+                    args=[self.active_item.pk],
+                ),
+                review_data,
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                reverse(
+                    "customer:review_create",
+                    args=[self.other_completed_item.pk],
+                ),
+                review_data,
+            ).status_code,
+            404,
+        )
+
+    def test_product_detail_displays_reviews_and_average_rating(self):
+        ProductReview.objects.create(
+            rental_item=self.completed_item,
+            rating=5,
+            review_text="A polished rental experience.",
+        )
+        ProductReview.objects.create(
+            rental_item=self.other_completed_item,
+            rating=3,
+            review_text="Good overall with a comfortable fit.",
+        )
+
+        response = self.client.get(
+            reverse("customer:product_detail", args=[self.product.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["average_rating"], 4.0)
+        self.assertEqual(response.context["review_count"], 2)
+        self.assertContains(response, "4.0 / 5")
+        self.assertContains(response, "A polished rental experience.")
+        self.assertContains(
+            response,
+            "Good overall with a comfortable fit.",
+        )
+
+    def test_order_detail_shows_review_action_and_submitted_state(self):
+        self.client.force_login(self.customer)
+        order_url = reverse(
+            "customer:order_detail",
+            args=[self.order.pk],
+        )
+
+        response = self.client.get(order_url)
+
+        self.assertContains(response, "Write a review", count=1)
+        self.assertContains(
+            response,
+            reverse(
+                "customer:review_create",
+                args=[self.completed_item.pk],
+            ),
+        )
+
+        ProductReview.objects.create(
+            rental_item=self.completed_item,
+            rating=4,
+            review_text="Would rent this again.",
+        )
+        reviewed_response = self.client.get(order_url)
+
+        self.assertContains(reviewed_response, "Review submitted")
+        self.assertNotContains(reviewed_response, "Write a review")
