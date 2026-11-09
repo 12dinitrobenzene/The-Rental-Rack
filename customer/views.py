@@ -9,6 +9,7 @@ from django.db.models import F, Prefetch, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 
 from accounts.permissions import require_customer
@@ -39,7 +40,7 @@ from .forms import (
     RentalSelectionForm,
     StyleQuizForm,
 )
-from .models import CustomerProductInteraction
+from .models import CustomerProductInteraction, WishlistItem
 
 
 RENTAL_CART_SESSION_KEY = "rental_cart"
@@ -47,6 +48,54 @@ CANCELLABLE_RENTAL_STATUSES = {
     RentalItem.Status.CONFIRMED,
     RentalItem.Status.PREPARING,
 }
+
+
+def _wishlist_product_ids(customer, product_ids=None):
+    wishlist = WishlistItem.objects.filter(customer=customer)
+
+    if product_ids is not None:
+        wishlist = wishlist.filter(product_id__in=product_ids)
+
+    return set(wishlist.values_list("product_id", flat=True))
+
+
+def _with_wishlist_state(
+    products,
+    *,
+    user,
+    next_url,
+    wishlist_product_ids=None,
+):
+    products = list(products)
+    wishlist_enabled = role_for_user(user) == CUSTOMER_GROUP
+
+    if wishlist_enabled and wishlist_product_ids is None:
+        wishlist_product_ids = _wishlist_product_ids(
+            user,
+            [product.pk for product in products],
+        )
+    else:
+        wishlist_product_ids = set(wishlist_product_ids or ())
+
+    for product in products:
+        product.wishlist_enabled = wishlist_enabled
+        product.is_wishlisted = product.pk in wishlist_product_ids
+        product.wishlist_next_url = next_url
+
+    return products
+
+
+def _redirect_after_wishlist_action(request):
+    next_url = request.POST.get("next", "")
+
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+
+    return redirect("customer:wishlist")
 
 
 def catalogue(request):
@@ -113,6 +162,12 @@ def catalogue(request):
     else:
         products = products.none()
 
+    products = _with_wishlist_state(
+        products,
+        user=request.user,
+        next_url=request.get_full_path(),
+    )
+
     return render(
         request,
         "customer/catalogue.html",
@@ -143,6 +198,10 @@ def customer_home(request):
         product.pk
         for product in eligible_products
     ]
+    wishlist_product_ids = _wishlist_product_ids(
+        request.user,
+        eligible_product_ids,
+    )
     view_counts = dict(
         CustomerProductInteraction.objects.filter(
             customer=request.user,
@@ -164,6 +223,13 @@ def customer_home(request):
         predicted_style_id=style_profile.predicted_style_id,
         view_counts=view_counts,
         completed_style_ids=completed_style_ids,
+        wishlist_product_ids=wishlist_product_ids,
+    )
+    products = _with_wishlist_state(
+        products,
+        user=request.user,
+        next_url=request.get_full_path(),
+        wishlist_product_ids=wishlist_product_ids,
     )
 
     featured_vendors = (
@@ -261,6 +327,16 @@ def product_detail(request, product_id):
         .filter(category=product.category)
         .exclude(pk=product.pk)[:4]
     )
+    product = _with_wishlist_state(
+        [product],
+        user=request.user,
+        next_url=request.get_full_path(),
+    )[0]
+    related_products = _with_wishlist_state(
+        related_products,
+        user=request.user,
+        next_url=request.get_full_path(),
+    )
 
     total_stock = sum(
         variant.total_quantity
@@ -301,6 +377,79 @@ def product_detail(request, product_id):
             "rental_result": rental_result,
         },
     )
+
+
+class WishlistView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+
+    def get(self, request):
+        require_customer(request.user)
+        products = list(
+            visible_products()
+            .filter(wishlist_items__customer=request.user)
+            .order_by("-wishlist_items__created_at", "-pk")
+            .distinct()
+        )
+        products = _with_wishlist_state(
+            products,
+            user=request.user,
+            next_url=request.get_full_path(),
+            wishlist_product_ids={
+                product.pk
+                for product in products
+            },
+        )
+        return render(
+            request,
+            "customer/wishlist.html",
+            {"products": products},
+        )
+
+
+class WishlistAddView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+    http_method_names = ["post"]
+
+    def post(self, request, product_id):
+        require_customer(request.user)
+        product = get_object_or_404(
+            visible_products(),
+            pk=product_id,
+        )
+        _, created = WishlistItem.objects.get_or_create(
+            customer=request.user,
+            product=product,
+        )
+
+        if created:
+            messages.success(
+                request,
+                f"{product.name} was added to your wishlist.",
+            )
+        else:
+            messages.info(
+                request,
+                f"{product.name} is already in your wishlist.",
+            )
+
+        return _redirect_after_wishlist_action(request)
+
+
+class WishlistRemoveView(LoginRequiredMixin, View):
+    login_url = "accounts:login"
+    http_method_names = ["post"]
+
+    def post(self, request, product_id):
+        require_customer(request.user)
+        deleted, _ = WishlistItem.objects.filter(
+            customer=request.user,
+            product_id=product_id,
+        ).delete()
+
+        if deleted:
+            messages.success(request, "The product was removed from your wishlist.")
+
+        return _redirect_after_wishlist_action(request)
 
 
 class AddToCartView(LoginRequiredMixin, View):

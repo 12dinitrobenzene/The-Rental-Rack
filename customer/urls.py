@@ -62,12 +62,18 @@ urlpatterns = [
     ),
     path(
         "wishlist/",
-        views.customer_placeholder,
-        {
-            "title": "Your wishlist",
-            "message": "Your saved clothing will appear here.",
-        },
+        views.WishlistView.as_view(),
         name="wishlist",
+    ),
+    path(
+        "wishlist/<int:product_id>/add/",
+        views.WishlistAddView.as_view(),
+        name="wishlist_add",
+    ),
+    path(
+        "wishlist/<int:product_id>/remove/",
+        views.WishlistRemoveView.as_view(),
+        name="wishlist_remove",
     ),
     path(
         "about_us/",

@@ -13,7 +13,7 @@ from django.urls import reverse
 
 from accounts.roles import CUSTOMER_GROUP
 from customer.forms import RentalSelectionForm, StyleQuizForm
-from customer.models import CustomerProductInteraction
+from customer.models import CustomerProductInteraction, WishlistItem
 from recommendations.services import (
     EXPECTED_LABELS,
     StyleModelError,
@@ -2017,6 +2017,142 @@ class RecommendationRankingTests(TestCase):
         self.assertEqual(viewed_score, 10)
         self.assertEqual(completed_score, 10)
         self.assertEqual(ranked[0], self.predicted_product)
+
+
+class WishlistTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        customer_group, _ = Group.objects.get_or_create(
+            name=CUSTOMER_GROUP
+        )
+        cls.customer = get_user_model().objects.create_user(
+            username="wishlist-customer",
+        )
+        cls.other_customer = get_user_model().objects.create_user(
+            username="other-wishlist-customer",
+        )
+        cls.customer.groups.add(customer_group)
+        cls.other_customer.groups.add(customer_group)
+        cls.style_tag = StyleTag.objects.get(slug="minimalist_clean")
+        CustomerStyleProfile.objects.create(
+            customer=cls.customer,
+            silhouette="clean_fitted",
+            details="minimal_details",
+            impression="understated",
+            styling_approach="simple_coordinated",
+            statement_level="low",
+            palette="neutral",
+            predicted_style=cls.style_tag,
+            model_version="test",
+        )
+        vendor = Vendor.objects.create(
+            name="Wishlist Vendor",
+            contact_email="wishlist@example.com",
+            approval_status=Vendor.ApprovalStatus.APPROVED,
+        )
+        category = Category.objects.create(name="Wishlist Clothing")
+
+        def create_product(name, sku):
+            product = Product.objects.create(
+                vendor=vendor,
+                category=category,
+                name=name,
+                description="Wishlist test product.",
+                brand="Test",
+                daily_rate=Decimal("10.00"),
+                is_active=True,
+                is_published=True,
+            )
+            product.style_tags.add(cls.style_tag)
+            ProductVariant.objects.create(
+                product=product,
+                sku=sku,
+                size="M",
+                colour="Blue",
+                total_quantity=1,
+            )
+            return product
+
+        cls.older_product = create_product(
+            "Older Wishlist Jacket",
+            "older-wishlist-jacket",
+        )
+        cls.newer_product = create_product(
+            "Newer Wishlist Jacket",
+            "newer-wishlist-jacket",
+        )
+
+    def test_add_is_duplicate_safe_and_remove_is_repeatable(self):
+        self.client.force_login(self.customer)
+        add_url = reverse(
+            "customer:wishlist_add",
+            args=[self.older_product.pk],
+        )
+        remove_url = reverse(
+            "customer:wishlist_remove",
+            args=[self.older_product.pk],
+        )
+
+        self.client.post(add_url)
+        self.client.post(add_url)
+
+        self.assertEqual(
+            WishlistItem.objects.filter(
+                customer=self.customer,
+                product=self.older_product,
+            ).count(),
+            1,
+        )
+
+        self.client.post(remove_url)
+        self.client.post(remove_url)
+
+        self.assertFalse(
+            WishlistItem.objects.filter(
+                customer=self.customer,
+                product=self.older_product,
+            ).exists()
+        )
+
+    def test_wishlist_page_is_protected_and_customer_specific(self):
+        WishlistItem.objects.create(
+            customer=self.customer,
+            product=self.older_product,
+        )
+        other_item = WishlistItem.objects.create(
+            customer=self.other_customer,
+            product=self.newer_product,
+        )
+        wishlist_url = reverse("customer:wishlist")
+
+        anonymous_response = self.client.get(wishlist_url)
+        self.assertEqual(anonymous_response.status_code, 302)
+
+        self.client.force_login(self.customer)
+        response = self.client.get(wishlist_url)
+        self.client.post(
+            reverse(
+                "customer:wishlist_remove",
+                args=[self.newer_product.pk],
+            )
+        )
+
+        self.assertContains(response, self.older_product.name)
+        self.assertContains(response, "Remove from wishlist")
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        self.assertNotContains(response, self.newer_product.name)
+        self.assertTrue(WishlistItem.objects.filter(pk=other_item.pk).exists())
+
+    def test_wishlist_signal_adjusts_for_you_ranking(self):
+        WishlistItem.objects.create(
+            customer=self.customer,
+            product=self.older_product,
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.get(reverse("customer:home"))
+
+        self.assertEqual(response.context["products"][0], self.older_product)
 
 
 class StylePredictionServiceTests(TestCase):
