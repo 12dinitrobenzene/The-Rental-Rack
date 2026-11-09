@@ -33,11 +33,15 @@
             SGD {{ product.daily_rate }}/day
         </p>
 
-        <a
-            href="{% url 'customer:product_detail' product.id %}"
-            class="btn btn-outline-dark"
-        >
-            View details
-        </a>
+        <div class="d-flex flex-wrap gap-2">
+            <a
+                href="{% url 'customer:product_detail' product.id %}"
+                class="btn btn-outline-dark"
+            >
+                View details
+            </a>
+
+            {% include "customer/components/wishlist_button.html" with product=product only %}
+        </div>
     </div>
 </article>

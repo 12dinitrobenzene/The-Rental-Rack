@@ -1,0 +1,25 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}Your wishlist | Clothing Store{% endblock %}
+
+{% block content %}
+<header class="mb-4">
+    <h1>Your wishlist</h1>
+    <p class="text-muted">Clothing you have saved for later.</p>
+</header>
+
+<div class="row g-4">
+    {% for product in products %}
+        <div class="col-sm-6 col-lg-4">
+            {% include "customer/components/product_card.html" with product=product only %}
+        </div>
+    {% empty %}
+        <div class="col-12">
+            <p>You haven’t saved any available clothing yet.</p>
+            <a class="btn btn-dark" href="{% url 'customer:catalogue' %}">
+                Browse clothing
+            </a>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% if product.wishlist_enabled %}
+    {% if product.is_wishlisted %}
+        <form method="post"
+              action="{% url 'customer:wishlist_remove' product.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ product.wishlist_next_url }}">
+            <button class="btn btn-outline-secondary" type="submit">
+                <i class="bi bi-heart-fill" aria-hidden="true"></i>
+                Remove from wishlist
+            </button>
+        </form>
+    {% else %}
+        <form method="post"
+              action="{% url 'customer:wishlist_add' product.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ product.wishlist_next_url }}">
+            <button class="btn btn-outline-secondary" type="submit">
+                <i class="bi bi-heart" aria-hidden="true"></i>
+                Save to wishlist
+            </button>
+        </form>
+    {% endif %}
+{% endif %}
