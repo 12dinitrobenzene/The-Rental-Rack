@@ -28,6 +28,7 @@ from .forms import (
     CatalogueFilterForm,
     CheckoutForm,
     RentalSelectionForm,
+    StyleQuizForm,
 )
 
 
@@ -582,13 +583,29 @@ class CheckoutView(LoginRequiredMixin, View):
         return redirect("customer:order_confirmation", order_id=order.pk)
 
 
+@login_required(login_url="accounts:login")
 def style_preferences(request):
+    require_customer(request.user)
+
+    if request.method == "POST":
+        form = StyleQuizForm(request.POST)
+
+        if form.is_valid():
+            # F42 model prediction and profile persistence will be added here.
+            messages.success(
+                request,
+                "Your style quiz answers were submitted successfully.",
+            )
+
+            return redirect("customer:style_preferences")
+    else:
+        form = StyleQuizForm()
+
     return render(
         request,
-        "public/section_placeholder.html",
+        "customer/style_preferences.html",
         {
-            "title": "Style preferences",
-            "message": "Personal style preferences will be available here.",
+            "form": form,
         },
     )
 

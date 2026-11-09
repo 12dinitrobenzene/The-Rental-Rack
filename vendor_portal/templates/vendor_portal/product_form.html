@@ -42,6 +42,11 @@
                 {{ form.daily_rate }}
                 <div class="text-danger small">{{ form.daily_rate.errors }}</div>
             </div>
+            <div class="mb-3">
+                <label class="form-label" for="{{ form.style_tags.id_for_label }}">{{ form.style_tags.label }}</label>
+                {{ form.style_tags }}
+                <div class="text-danger small">{{ form.style_tags.errors }}</div>
+            </div>
             <div class="form-check mb-4">
                 {{ form.is_published }}
                 <label class="form-check-label" for="{{ form.is_published.id_for_label }}">{{ form.is_published.label }}</label>
