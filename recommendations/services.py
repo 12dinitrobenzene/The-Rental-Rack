@@ -30,6 +30,13 @@ EXPECTED_LABELS = {
     "avant_garde_statement",
 }
 
+PREDICTED_STYLE_WEIGHT = 100
+WISHLIST_WEIGHT = 30
+COMPLETED_STYLE_WEIGHT = 10
+MAX_COMPLETED_STYLE_SCORE = 30
+PRODUCT_VIEW_WEIGHT = 2
+MAX_PRODUCT_VIEW_SCORE = 10
+
 
 class StyleModelError(RuntimeError):
     """Raised when the trusted style model cannot be used."""
@@ -112,3 +119,72 @@ def predict_style(cleaned_data):
         "style": prediction,
         "model_version": artifact["model_version"],
     }
+
+
+def recommendation_score(
+    product,
+    *,
+    predicted_style_id,
+    view_count=0,
+    completed_style_ids=frozenset(),
+    wishlisted=False,
+):
+    style_ids = {
+        style_tag.pk
+        for style_tag in product.style_tags.all()
+    }
+    score = 0
+
+    if predicted_style_id in style_ids:
+        score += PREDICTED_STYLE_WEIGHT
+
+    if wishlisted:
+        score += WISHLIST_WEIGHT
+
+    completed_matches = len(style_ids & set(completed_style_ids))
+    score += min(
+        completed_matches * COMPLETED_STYLE_WEIGHT,
+        MAX_COMPLETED_STYLE_SCORE,
+    )
+    score += min(
+        view_count * PRODUCT_VIEW_WEIGHT,
+        MAX_PRODUCT_VIEW_SCORE,
+    )
+    return score
+
+
+def rank_recommended_products(
+    products,
+    *,
+    predicted_style_id,
+    view_counts=None,
+    completed_style_ids=None,
+    wishlist_product_ids=None,
+    limit=8,
+):
+    view_counts = view_counts or {}
+    completed_style_ids = set(completed_style_ids or ())
+    wishlist_product_ids = set(wishlist_product_ids or ())
+    scored_products = []
+
+    for product in products:
+        score = recommendation_score(
+            product,
+            predicted_style_id=predicted_style_id,
+            view_count=view_counts.get(product.pk, 0),
+            completed_style_ids=completed_style_ids,
+            wishlisted=product.pk in wishlist_product_ids,
+        )
+
+        if score > 0:
+            scored_products.append((score, product))
+
+    scored_products.sort(
+        key=lambda entry: (
+            entry[0],
+            entry[1].created_at,
+            entry[1].pk,
+        ),
+        reverse=True,
+    )
+    return [product for _, product in scored_products[:limit]]
