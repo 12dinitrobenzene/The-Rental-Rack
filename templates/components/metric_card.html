@@ -1,0 +1,19 @@
+<div class="col-sm-6 col-xl-4">
+    <div class="card h-100 shadow-sm">
+        <div class="card-body">
+            <p class="text-muted small text-uppercase mb-2">
+                {{ label }}
+            </p>
+
+            <p class="display-6 fw-semibold mb-0">
+                {% if prefix %}{{ prefix }} {% endif %}{{ value }}
+            </p>
+
+            {% if description %}
+                <p class="small text-muted mt-2 mb-0">
+                    {{ description }}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
