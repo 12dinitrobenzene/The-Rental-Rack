@@ -65,6 +65,48 @@ class EmployeeHomeTests(TestCase):
             **extra_fields,
         )
 
+    def create_variant(self, product, sku, total_quantity=1):
+        return ProductVariant.objects.create(
+            product=product,
+            sku=sku,
+            size="M",
+            colour="Blue",
+            total_quantity=total_quantity,
+        )
+
+    def create_order(
+        self,
+        vendor=None,
+        payment_status=RentalOrder.PaymentStatus.PAID,
+    ):
+        return RentalOrder.objects.create(
+            customer=self.user,
+            vendor=vendor or self.vendor,
+            delivery_address="1 Test Street",
+            payment_status=payment_status,
+            total_amount=Decimal("100.00"),
+        )
+
+    def create_rental_item(
+        self,
+        order,
+        variant,
+        status,
+        name="Test rental item",
+    ):
+        return RentalItem.objects.create(
+            order=order,
+            variant=variant,
+            product_name_snapshot=name,
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=date(2026, 11, 1),
+            rental_end_date=date(2026, 11, 1),
+            rental_days=1,
+            line_total=Decimal("10.00"),
+            status=status,
+        )
+
     def image_file(self, name="product.gif"):
         return SimpleUploadedFile(
             name,
@@ -155,6 +197,281 @@ class EmployeeHomeTests(TestCase):
         self.assertContains(response, "Stock")
         self.assertContains(response, "4")
         self.assertContains(response, "Active")
+
+    def test_workspace_metrics_are_scoped_to_paid_vendor_rentals(self):
+        self.vendor.approval_status = Vendor.ApprovalStatus.APPROVED
+        self.vendor.save(update_fields=["approval_status"])
+        product = self.create_product(
+            self.vendor,
+            "Visible metrics product",
+            is_active=True,
+            is_published=True,
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="metrics-product-m",
+            size="M",
+            colour="Blue",
+            total_quantity=4,
+        )
+        paid_order = RentalOrder.objects.create(
+            customer=self.user,
+            vendor=self.vendor,
+            delivery_address="1 Metrics Street",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=Decimal("30.00"),
+        )
+
+        for index, status in enumerate(
+            (
+                RentalItem.Status.CONFIRMED,
+                RentalItem.Status.OVERDUE,
+                RentalItem.Status.RETURNED,
+            )
+        ):
+            RentalItem.objects.create(
+                order=paid_order,
+                variant=variant,
+                product_name_snapshot=f"Metrics item {index}",
+                daily_rate_snapshot=Decimal("10.00"),
+                quantity=1,
+                rental_start_date=date(2026, 11, 1),
+                rental_end_date=date(2026, 11, 2),
+                rental_days=2,
+                line_total=Decimal("10.00"),
+                status=status,
+            )
+
+        unpaid_order = RentalOrder.objects.create(
+            customer=self.user,
+            vendor=self.vendor,
+            delivery_address="1 Unpaid Street",
+            payment_status=RentalOrder.PaymentStatus.PENDING,
+            total_amount=Decimal("10.00"),
+        )
+        RentalItem.objects.create(
+            order=unpaid_order,
+            variant=variant,
+            product_name_snapshot="Unpaid metrics item",
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=date(2026, 11, 1),
+            rental_end_date=date(2026, 11, 2),
+            rental_days=2,
+            line_total=Decimal("10.00"),
+            status=RentalItem.Status.OVERDUE,
+        )
+
+        other_product = self.create_product(
+            self.other_vendor,
+            "Other vendor metrics product",
+        )
+        other_variant = ProductVariant.objects.create(
+            product=other_product,
+            sku="other-metrics-product-m",
+            size="M",
+            colour="Black",
+            total_quantity=1,
+        )
+        other_order = RentalOrder.objects.create(
+            customer=self.user,
+            vendor=self.other_vendor,
+            delivery_address="2 Metrics Street",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=Decimal("10.00"),
+        )
+        RentalItem.objects.create(
+            order=other_order,
+            variant=other_variant,
+            product_name_snapshot="Other vendor metrics item",
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=date(2026, 11, 1),
+            rental_end_date=date(2026, 11, 2),
+            rental_days=2,
+            line_total=Decimal("10.00"),
+            status=RentalItem.Status.OVERDUE,
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["rental_metrics"],
+            {
+                "active_rentals": 3,
+                "awaiting_fulfilment": 1,
+                "overdue_rentals": 1,
+                "awaiting_completion": 1,
+            },
+        )
+        self.assertEqual(response.context["active_listings"], 1)
+        self.assertEqual(response.context["total_physical_stock"], 4)
+        self.assertEqual(response.context["active_rentals"], 3)
+        self.assertEqual(response.context["awaiting_fulfilment"], 1)
+        self.assertEqual(response.context["overdue_rentals"], 1)
+        self.assertEqual(response.context["awaiting_completion"], 1)
+        for label in (
+            "Operational summary",
+            "Active rentals",
+            "Awaiting fulfilment",
+            "Overdue rentals",
+            "Awaiting completion",
+            "Active listings",
+            "Physical stock",
+        ):
+            self.assertContains(response, label)
+
+    def test_each_status_appears_in_the_correct_metric(self):
+        product = self.create_product(
+            self.vendor,
+            "Status metrics product",
+        )
+        variant = self.create_variant(
+            product,
+            "status-metrics-variant",
+        )
+        order = self.create_order()
+
+        statuses = [
+            RentalItem.Status.CONFIRMED,
+            RentalItem.Status.PREPARING,
+            RentalItem.Status.DISPATCHED,
+            RentalItem.Status.ACTIVE,
+            RentalItem.Status.OVERDUE,
+            RentalItem.Status.RETURNED,
+            RentalItem.Status.COMPLETED,
+            RentalItem.Status.CANCELLED,
+        ]
+
+        for status in statuses:
+            self.create_rental_item(
+                order,
+                variant,
+                status,
+                name=f"{status} item",
+            )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("vendor_portal:home"))
+        metrics = response.context["rental_metrics"]
+
+        self.assertEqual(metrics["active_rentals"], 6)
+        self.assertEqual(metrics["awaiting_fulfilment"], 2)
+        self.assertEqual(metrics["overdue_rentals"], 1)
+        self.assertEqual(metrics["awaiting_completion"], 1)
+
+    def test_returned_item_with_settlement_is_not_awaiting_completion(self):
+        product = self.create_product(
+            self.vendor,
+            "Settlement metrics product",
+        )
+        variant = self.create_variant(
+            product,
+            "settlement-metrics-variant",
+        )
+        order = self.create_order()
+
+        unsettled_item = self.create_rental_item(
+            order,
+            variant,
+            RentalItem.Status.RETURNED,
+            name="Unsettled returned item",
+        )
+        settled_item = self.create_rental_item(
+            order,
+            variant,
+            RentalItem.Status.RETURNED,
+            name="Settled returned item",
+        )
+
+        RentalSettlement.objects.create(
+            rental_item=settled_item,
+            commission_rate_snapshot=Decimal("0.2000"),
+            platform_amount=Decimal("2.00"),
+            vendor_amount=Decimal("8.00"),
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertEqual(response.context["awaiting_completion"], 1)
+        self.assertFalse(hasattr(unsettled_item, "settlement"))
+
+    def test_suspended_vendor_has_zero_active_listings(self):
+        self.vendor.approval_status = Vendor.ApprovalStatus.APPROVED
+        self.vendor.save(update_fields=["approval_status"])
+
+        product = self.create_product(
+            self.vendor,
+            "Visible product",
+            is_active=True,
+            is_published=True,
+        )
+        self.create_variant(product, "visible-product-variant")
+
+        self.client.force_login(self.user)
+
+        active_response = self.client.get(
+            reverse("vendor_portal:home")
+        )
+        self.assertEqual(active_response.context["active_listings"], 1)
+
+        self.vendor.is_suspended = True
+        self.vendor.save(update_fields=["is_suspended"])
+
+        suspended_response = self.client.get(
+            reverse("vendor_portal:home")
+        )
+        self.assertEqual(suspended_response.context["active_listings"], 0)
+
+    def test_vendor_without_variants_has_zero_physical_stock(self):
+        self.create_product(
+            self.vendor,
+            "Product without variants",
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertEqual(response.context["total_physical_stock"], 0)
+
+    def test_physical_stock_sums_all_vendor_variants(self):
+        product = self.create_product(
+            self.vendor,
+            "Multi-variant product",
+        )
+        self.create_variant(
+            product,
+            "multi-variant-small",
+            total_quantity=2,
+        )
+        ProductVariant.objects.create(
+            product=product,
+            sku="multi-variant-medium",
+            size="L",
+            colour="Blue",
+            total_quantity=5,
+        )
+
+        other_product = self.create_product(
+            self.other_vendor,
+            "Other vendor stock",
+        )
+        self.create_variant(
+            other_product,
+            "other-vendor-variant",
+            total_quantity=100,
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("vendor_portal:home"))
+
+        self.assertEqual(
+            response.context["total_physical_stock"],
+            7,
+        )
 
     def test_inventory_uses_clear_status_labels(self):
         active_product = self.create_product(

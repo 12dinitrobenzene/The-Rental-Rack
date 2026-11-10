@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import Count, F, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
@@ -20,6 +20,7 @@ from shop.models import (
     RentalSettlement,
     ReturnInspection,
 )
+from shop.visibility import visible_products
 
 from .forms import (
     ProductForm,
@@ -137,6 +138,60 @@ def employee_rental_item_or_404(employee, item_id, *, for_update=False):
 def employee_home(request):
     employee = get_employee_for_user(request.user)
 
+    active_statuses = [
+        RentalItem.Status.CONFIRMED,
+        RentalItem.Status.PREPARING,
+        RentalItem.Status.DISPATCHED,
+        RentalItem.Status.ACTIVE,
+        RentalItem.Status.OVERDUE,
+        RentalItem.Status.RETURNED,
+    ]
+
+    vendor_paid_items = RentalItem.objects.filter(
+        order__vendor=employee.vendor,
+        order__payment_status=RentalOrder.PaymentStatus.PAID,
+    )
+
+    rental_metrics = vendor_paid_items.aggregate(
+        active_rentals=Count(
+            "pk",
+            filter=Q(status__in=active_statuses),
+        ),
+        awaiting_fulfilment=Count(
+            "pk",
+            filter=Q(
+                status__in=[
+                    RentalItem.Status.CONFIRMED,
+                    RentalItem.Status.PREPARING,
+                ]
+            ),
+        ),
+        overdue_rentals=Count(
+            "pk",
+            filter=Q(status=RentalItem.Status.OVERDUE),
+        ),
+        awaiting_completion=Count(
+            "pk",
+            filter=Q(
+                status=RentalItem.Status.RETURNED,
+                settlement__isnull=True,
+            ),
+        ),
+    )
+
+    active_listings = (
+        visible_products()
+        .filter(vendor=employee.vendor)
+        .count()
+    )
+
+    total_physical_stock = (
+        ProductVariant.objects
+        .filter(product__vendor=employee.vendor)
+        .aggregate(total=Sum("total_quantity"))["total"]
+        or 0
+    )
+
     products = list(
         Product.objects.filter(vendor=employee.vendor)
         .select_related("category", "vendor")
@@ -148,6 +203,17 @@ def employee_home(request):
         product.total_stock = product.total_stock or 0
         product.status_label, product.status_style = inventory_status(product)
 
+    rental_items = (
+        RentalItem.objects.filter(order__vendor=employee.vendor)
+        .select_related(
+            "order",
+            "order__customer",
+            "variant",
+            "settlement",
+        )
+        .order_by("-order__created_at", "pk")
+    )
+
     return render(
         request,
         "vendor_portal/home.html",
@@ -155,6 +221,14 @@ def employee_home(request):
             "vendor": employee.vendor,
             "employee": employee,
             "products": products,
+            "rental_items": rental_items,
+            "rental_metrics": rental_metrics,
+            "active_rentals": rental_metrics["active_rentals"],
+            "awaiting_fulfilment": rental_metrics["awaiting_fulfilment"],
+            "overdue_rentals": rental_metrics["overdue_rentals"],
+            "awaiting_completion": rental_metrics["awaiting_completion"],
+            "active_listings": active_listings,
+            "total_physical_stock": total_physical_stock,
         },
     )
 

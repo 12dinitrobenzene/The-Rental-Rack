@@ -22,6 +22,21 @@
     {% endif %}
 </header>
 
+<section class="mb-5" aria-labelledby="operational-summary-heading">
+    <h2 class="h3 mb-3" id="operational-summary-heading">
+        Operational summary
+    </h2>
+
+    <div class="row g-3">
+        {% include "components/metric_card.html" with label="Active rentals" value=active_rentals %}
+        {% include "components/metric_card.html" with label="Awaiting fulfilment" value=awaiting_fulfilment %}
+        {% include "components/metric_card.html" with label="Overdue rentals" value=overdue_rentals %}
+        {% include "components/metric_card.html" with label="Awaiting completion" value=awaiting_completion %}
+        {% include "components/metric_card.html" with label="Active listings" value=active_listings %}
+        {% include "components/metric_card.html" with label="Physical stock" value=total_physical_stock %}
+    </div>
+</section>
+
 <section aria-labelledby="vendor-products-heading">
     <h2 id="vendor-products-heading" class="visually-hidden">Your products</h2>
     <div class="table-responsive border rounded">
