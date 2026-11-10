@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -29,6 +31,7 @@ from .forms import (
     RentalReturnForm,
     RentalOrderFilterForm,
     ReturnInspectionForm,
+    VendorAnalyticsFilterForm,
 )
 
 
@@ -229,6 +232,118 @@ def employee_home(request):
             "awaiting_completion": rental_metrics["awaiting_completion"],
             "active_listings": active_listings,
             "total_physical_stock": total_physical_stock,
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
+def employee_analytics(request):
+    employee = get_employee_for_user(request.user)
+    form = VendorAnalyticsFilterForm(request.GET)
+
+    completed_items = RentalItem.objects.filter(
+        order__vendor=employee.vendor,
+        status=RentalItem.Status.COMPLETED,
+    )
+
+    settlements = RentalSettlement.objects.filter(
+        rental_item__order__vendor=employee.vendor,
+    )
+
+    if form.is_valid():
+        start_date = form.cleaned_data.get("start_date")
+        end_date = form.cleaned_data.get("end_date")
+
+        if start_date:
+            completed_items = completed_items.filter(
+                order__created_at__date__gte=start_date
+            )
+        if end_date:
+            completed_items = completed_items.filter(
+                order__created_at__date__lte=end_date
+            )
+
+        if start_date:
+            settlements = settlements.filter(
+                created_at__date__gte=start_date
+            )
+        if end_date:
+            settlements = settlements.filter(
+                created_at__date__lte=end_date
+            )
+
+    completed_rental_quantity = (
+        completed_items.aggregate(total=Sum("quantity"))["total"]
+        or 0
+    )
+
+    settlement_totals = settlements.aggregate(
+        platform_commission=Sum("platform_amount"),
+        vendor_payout=Sum("vendor_amount"),
+    )
+
+    platform_commission = (
+        settlement_totals["platform_commission"]
+        or Decimal("0.00")
+    )
+    vendor_payout = (
+        settlement_totals["vendor_payout"]
+        or Decimal("0.00")
+    )
+
+    settled_gross_value = platform_commission + vendor_payout
+
+    popular_products = (
+        completed_items
+        .values(
+            "variant__product_id",
+            product_name=F("variant__product__name"),
+        )
+        .annotate(rental_quantity=Sum("quantity"))
+        .order_by(
+            "-rental_quantity",
+            "product_name",
+            "variant__product_id",
+        )
+    )
+
+    popular_categories = (
+        completed_items
+        .values(
+            "variant__product__category_id",
+            category_name=F(
+                "variant__product__category__name"
+            ),
+        )
+        .annotate(rental_quantity=Sum("quantity"))
+        .order_by(
+            "-rental_quantity",
+            "category_name",
+            "variant__product__category_id",
+        )
+    )
+
+    popular_sizes = (
+        completed_items
+        .values(size=F("variant__size"))
+        .annotate(rental_quantity=Sum("quantity"))
+        .order_by("-rental_quantity", "size")
+    )
+
+    return render(
+        request,
+        "vendor_portal/analytics.html",
+        {
+            "vendor": employee.vendor,
+            "employee": employee,
+            "form": form,
+            "completed_rental_quantity": completed_rental_quantity,
+            "settled_gross_value": settled_gross_value,
+            "vendor_payout": vendor_payout,
+            "platform_commission": platform_commission,
+            "popular_products": popular_products,
+            "popular_categories": popular_categories,
+            "popular_sizes": popular_sizes,
         },
     )
 
