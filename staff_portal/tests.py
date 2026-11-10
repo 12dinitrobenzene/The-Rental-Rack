@@ -305,6 +305,249 @@ class PlatformDashboardTests(TestCase):
         )
 
 
+class PlatformRentalMonitoringTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        groups = {
+            name: Group.objects.get_or_create(name=name)[0]
+            for name in (
+                CUSTOMER_GROUP,
+                VENDOR_EMPLOYEE_GROUP,
+                PLATFORM_ADMIN_GROUP,
+            )
+        }
+        User = get_user_model()
+        cls.admin = User.objects.create_user(
+            username="monitoring-admin",
+            password="test-password",
+        )
+        cls.admin.groups.add(groups[PLATFORM_ADMIN_GROUP])
+        cls.customer_one = User.objects.create_user(
+            username="first-customer",
+            email="first@example.com",
+            password="test-password",
+        )
+        cls.customer_one.groups.add(groups[CUSTOMER_GROUP])
+        cls.customer_two = User.objects.create_user(
+            username="second-customer",
+            email="second@example.com",
+            password="test-password",
+        )
+        cls.customer_two.groups.add(groups[CUSTOMER_GROUP])
+        cls.employee = User.objects.create_user(
+            username="monitoring-employee",
+            password="test-password",
+        )
+        cls.employee.groups.add(groups[VENDOR_EMPLOYEE_GROUP])
+
+        cls.vendor_one = Vendor.objects.create(
+            name="First Monitoring Vendor",
+            contact_email="first-vendor@example.com",
+        )
+        cls.vendor_two = Vendor.objects.create(
+            name="Second Monitoring Vendor",
+            contact_email="second-vendor@example.com",
+        )
+        category = Category.objects.create(name="Monitoring Clothing")
+        first_product = Product.objects.create(
+            vendor=cls.vendor_one,
+            category=category,
+            name="Monitoring Jacket",
+            description="A jacket used for monitoring tests.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+        )
+        second_product = Product.objects.create(
+            vendor=cls.vendor_two,
+            category=category,
+            name="Monitoring Coat",
+            description="A coat used for monitoring tests.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+        )
+        first_variant = ProductVariant.objects.create(
+            product=first_product,
+            sku="monitoring-jacket-m",
+            size="M",
+            colour="Blue",
+            total_quantity=3,
+        )
+        second_variant = ProductVariant.objects.create(
+            product=second_product,
+            sku="monitoring-coat-l",
+            size="L",
+            colour="Black",
+            total_quantity=2,
+        )
+
+        cls.first_order = RentalOrder.objects.create(
+            customer=cls.customer_one,
+            vendor=cls.vendor_one,
+            delivery_address="1 Monitoring Street",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=Decimal("70.00"),
+        )
+        cls._create_item(
+            cls.first_order,
+            first_variant,
+            "Active Monitoring Jacket",
+            RentalItem.Status.ACTIVE,
+            date(2026, 11, 1),
+            date(2026, 11, 3),
+            Decimal("30.00"),
+        )
+        cls._create_item(
+            cls.first_order,
+            first_variant,
+            "Returned Monitoring Jacket",
+            RentalItem.Status.RETURNED,
+            date(2026, 11, 10),
+            date(2026, 11, 12),
+            Decimal("30.00"),
+        )
+        cls._create_item(
+            cls.first_order,
+            first_variant,
+            "Second Active Jacket",
+            RentalItem.Status.ACTIVE,
+            date(2026, 11, 2),
+            date(2026, 11, 2),
+            Decimal("10.00"),
+        )
+
+        cls.second_order = RentalOrder.objects.create(
+            customer=cls.customer_two,
+            vendor=cls.vendor_two,
+            delivery_address="2 Monitoring Street",
+            payment_status=RentalOrder.PaymentStatus.PENDING,
+            total_amount=Decimal("30.00"),
+        )
+        cls._create_item(
+            cls.second_order,
+            second_variant,
+            "Returned Monitoring Coat",
+            RentalItem.Status.RETURNED,
+            date(2026, 11, 1),
+            date(2026, 11, 3),
+            Decimal("30.00"),
+        )
+
+    @classmethod
+    def _create_item(
+        cls,
+        order,
+        variant,
+        product_name,
+        status,
+        start_date,
+        end_date,
+        line_total,
+    ):
+        return RentalItem.objects.create(
+            order=order,
+            variant=variant,
+            product_name_snapshot=product_name,
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=start_date,
+            rental_end_date=end_date,
+            rental_days=(end_date - start_date).days + 1,
+            line_total=line_total,
+            status=status,
+        )
+
+    def setUp(self):
+        self.url = reverse("staff_portal:rental_order_list")
+
+    def test_page_is_protected_read_only_and_displays_item_details(self):
+        anonymous_response = self.client.get(self.url)
+        self.assertEqual(anonymous_response.status_code, 302)
+
+        for user in (self.customer_one, self.employee):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                self.assertEqual(self.client.get(self.url).status_code, 403)
+
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "staff_portal/rental_orders.html",
+        )
+        for expected_text in (
+            "First Monitoring Vendor",
+            "first-customer",
+            "Active Monitoring Jacket",
+            "01 Nov 2026",
+            "03 Nov 2026",
+            "Paid",
+            "Active",
+        ):
+            self.assertContains(response, expected_text)
+        self.assertNotContains(response, "Mark dispatched")
+        self.assertNotContains(response, "Complete and record settlement")
+
+    def test_filters_are_combined_without_duplicates(self):
+        self.client.force_login(self.admin)
+
+        vendor_response = self.client.get(
+            self.url,
+            {"vendor": self.vendor_one.pk},
+        )
+        self.assertEqual(
+            [order.pk for order in vendor_response.context["orders"]],
+            [self.first_order.pk],
+        )
+
+        customer_response = self.client.get(
+            self.url,
+            {"customer": "second@example.com"},
+        )
+        self.assertEqual(
+            [order.pk for order in customer_response.context["orders"]],
+            [self.second_order.pk],
+        )
+
+        same_item_response = self.client.get(
+            self.url,
+            {
+                "status": RentalItem.Status.ACTIVE,
+                "date_from": "2026-11-10",
+                "date_to": "2026-11-12",
+            },
+        )
+        self.assertEqual(list(same_item_response.context["orders"]), [])
+
+        matching_response = self.client.get(
+            self.url,
+            {
+                "status": RentalItem.Status.ACTIVE,
+                "date_from": "2026-11-01",
+                "date_to": "2026-11-03",
+            },
+        )
+        self.assertEqual(
+            [order.pk for order in matching_response.context["orders"]],
+            [self.first_order.pk],
+        )
+
+        invalid_response = self.client.get(
+            self.url,
+            {
+                "date_from": "2026-11-12",
+                "date_to": "2026-11-10",
+            },
+        )
+        self.assertFalse(invalid_response.context["filter_form"].is_valid())
+        self.assertEqual(list(invalid_response.context["orders"]), [])
+        self.assertContains(
+            invalid_response,
+            "The To date must be on or after the From date.",
+        )
+
+
 class PlatformVendorManagementTests(TestCase):
     def setUp(self):
         self.admin = get_user_model().objects.create_user(

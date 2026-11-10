@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, F, Sum
+from django.db.models import Count, F, Prefetch, Q, Sum
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -15,6 +15,8 @@ from shop.models import (
     Vendor,
 )
 from shop.visibility import visible_products
+
+from .forms import PlatformRentalFilterForm
 
 
 @login_required(login_url="accounts:login")
@@ -96,6 +98,66 @@ def platform_vendor_list(request):
         request,
         "staff_portal/vendors.html",
         {"vendors": vendors},
+    )
+
+
+@login_required(login_url="accounts:login")
+def platform_rental_order_list(request):
+    require_platform_admin(request.user)
+    filter_form = PlatformRentalFilterForm(request.GET)
+
+    orders = (
+        RentalOrder.objects.select_related("customer", "vendor")
+        .prefetch_related(
+            Prefetch(
+                "items",
+                queryset=RentalItem.objects.select_related(
+                    "variant__product",
+                ),
+            )
+        )
+        .order_by("-created_at", "-pk")
+    )
+
+    if filter_form.is_valid():
+        vendor = filter_form.cleaned_data["vendor"]
+        customer = filter_form.cleaned_data["customer"]
+        status = filter_form.cleaned_data["status"]
+        date_from = filter_form.cleaned_data["date_from"]
+        date_to = filter_form.cleaned_data["date_to"]
+
+        if vendor:
+            orders = orders.filter(vendor=vendor)
+
+        if customer:
+            orders = orders.filter(
+                Q(customer__username__icontains=customer)
+                | Q(customer__email__icontains=customer)
+            )
+
+        item_filters = {}
+
+        if status:
+            item_filters["items__status"] = status
+
+        if date_from:
+            item_filters["items__rental_end_date__gte"] = date_from
+
+        if date_to:
+            item_filters["items__rental_start_date__lte"] = date_to
+
+        if item_filters:
+            orders = orders.filter(**item_filters).distinct()
+    else:
+        orders = orders.none()
+
+    return render(
+        request,
+        "staff_portal/rental_orders.html",
+        {
+            "filter_form": filter_form,
+            "orders": orders,
+        },
     )
 
 

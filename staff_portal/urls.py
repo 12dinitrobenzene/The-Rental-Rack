@@ -9,6 +9,11 @@ urlpatterns = [
     path("", views.platform_admin_home, name="home"),
     path("vendors/", views.platform_vendor_list, name="vendor_list"),
     path(
+        "rentals/",
+        views.platform_rental_order_list,
+        name="rental_order_list",
+    ),
+    path(
         "vendors/<int:vendor_id>/action/",
         views.platform_vendor_action,
         name="vendor_action",

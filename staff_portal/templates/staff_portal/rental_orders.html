@@ -1,0 +1,134 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Marketplace rentals | Clothing Store{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'staff_portal:home' %}">
+    Back to platform workspace
+</a>
+
+<header class="my-4">
+    <p class="text-muted small text-uppercase mb-1">
+        Marketplace monitoring
+    </p>
+    <h1 class="mb-1">Rental orders</h1>
+    <p class="text-muted mb-0">
+        Review rental activity across every vendor. Fulfilment remains
+        managed by the relevant vendor employee.
+    </p>
+</header>
+
+<form method="get"
+      action="{% url 'staff_portal:rental_order_list' %}"
+      class="border rounded p-3 mb-4">
+    {{ filter_form.non_field_errors }}
+
+    <div class="row g-3 align-items-end">
+        {% for field in filter_form %}
+            <div class="col-md-4 col-xl-2">
+                <label class="form-label" for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                </label>
+                {{ field }}
+                {% for error in field.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        <div class="col-md-4 col-xl-2">
+            <button class="btn btn-dark" type="submit">Filter</button>
+            <a class="btn btn-outline-secondary"
+               href="{% url 'staff_portal:rental_order_list' %}">
+                Reset
+            </a>
+        </div>
+    </div>
+
+    <p class="small text-muted mt-3 mb-0">
+        Date filters match orders containing an item that overlaps the
+        selected rental period.
+    </p>
+</form>
+
+<section aria-label="Marketplace rental orders">
+    {% for order in orders %}
+        <article class="border rounded mb-4">
+            <header class="bg-light border-bottom p-3">
+                <div class="d-flex flex-wrap justify-content-between gap-3">
+                    <div>
+                        <h2 class="h5 mb-1">Order #{{ order.pk }}</h2>
+                        <p class="text-muted mb-0">
+                            {{ order.customer.username }}
+                            {% if order.customer.email %}
+                                · {{ order.customer.email }}
+                            {% endif %}
+                            · {{ order.vendor.name }}
+                        </p>
+                    </div>
+                    <div class="text-md-end">
+                        <p class="mb-1">
+                            Payment: {{ order.get_payment_status_display }}
+                        </p>
+                        <p class="text-muted mb-0">
+                            {{ order.created_at|date:"d M Y, H:i" }}
+                            · SGD {{ order.total_amount|floatformat:2 }}
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Product</th>
+                            <th scope="col">Variant</th>
+                            <th scope="col">Rental dates</th>
+                            <th scope="col">Quantity</th>
+                            <th scope="col">Fulfilment status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in order.items.all %}
+                            <tr>
+                                <td>{{ item.product_name_snapshot }}</td>
+                                <td>
+                                    {{ item.variant.size }} /
+                                    {{ item.variant.colour }}
+                                </td>
+                                <td>
+                                    {{ item.rental_start_date|date:"d M Y" }}–{{ item.rental_end_date|date:"d M Y" }}
+                                </td>
+                                <td>{{ item.quantity }}</td>
+                                <td>
+                                    <span class="badge text-bg-secondary">
+                                        {{ item.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5"
+                                    class="text-center text-muted py-3">
+                                    No rental items are recorded for this order.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    {% empty %}
+        {% if filter_form.errors %}
+            <p class="text-muted">
+                Correct the filters above to view rental orders.
+            </p>
+        {% else %}
+            <p class="text-muted">
+                No rental orders match your filters.
+            </p>
+        {% endif %}
+    {% endfor %}
+</section>
+{% endblock %}

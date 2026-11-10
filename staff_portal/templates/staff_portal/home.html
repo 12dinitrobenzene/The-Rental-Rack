@@ -13,10 +13,16 @@
             Marketplace activity and settled financial performance.
         </p>
     </div>
-    <a href="{% url 'staff_portal:vendor_list' %}"
-       class="btn btn-dark">
-        Manage vendors
-    </a>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'staff_portal:rental_order_list' %}"
+           class="btn btn-outline-dark">
+            Monitor rentals
+        </a>
+        <a href="{% url 'staff_portal:vendor_list' %}"
+           class="btn btn-dark">
+            Manage vendors
+        </a>
+    </div>
 </header>
 
 <section class="mb-5" aria-labelledby="marketplace-summary-heading">
