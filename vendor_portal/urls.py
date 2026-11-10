@@ -8,6 +8,11 @@ app_name = "vendor_portal"
 urlpatterns = [
     path("", views.employee_home, name="home"),
     path(
+        "analytics/",
+        views.employee_analytics,
+        name="analytics",
+    ),
+    path(
         "rentals/<int:item_id>/",
         views.employee_rental_detail,
         name="rental_detail",

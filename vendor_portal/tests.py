@@ -136,6 +136,21 @@ class EmployeeHomeTests(TestCase):
         self.assertContains(response, "Rental orders")
         self.assertNotContains(response, "Rental fulfilment")
 
+    def test_analytics_page_renders_for_vendor_employee(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vendor_portal:analytics"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "vendor_portal/analytics.html",
+        )
+        self.assertContains(response, "Performance summary")
+        self.assertContains(response, "Popular products")
+        self.assertContains(response, "Popular categories")
+        self.assertContains(response, "Popular sizes")
+
     def test_employee_sees_only_products_owned_by_their_vendor(self):
         own_product = self.create_product(
             self.vendor,
@@ -732,6 +747,234 @@ class EmployeeHomeTests(TestCase):
     def test_variant_and_image_forms_do_not_expose_a_product_field(self):
         self.assertNotIn("product", ProductVariantForm.Meta.fields)
         self.assertNotIn("product", ProductImageForm.Meta.fields)
+
+
+class VendorAnalyticsTests(TestCase):
+    def setUp(self):
+        employee_group, _ = Group.objects.get_or_create(
+            name=VENDOR_EMPLOYEE_GROUP
+        )
+        self.user = get_user_model().objects.create_user(
+            username="analytics-employee",
+            password="test-pass-123",
+        )
+        self.user.groups.add(employee_group)
+        self.customer = get_user_model().objects.create_user(
+            username="analytics-customer",
+            password="test-pass-123",
+        )
+        self.vendor = Vendor.objects.create(
+            name="Analytics Vendor",
+            contact_email="analytics@example.com",
+        )
+        self.other_vendor = Vendor.objects.create(
+            name="Other Analytics Vendor",
+            contact_email="other-analytics@example.com",
+        )
+        VendorEmployee.objects.create(
+            user=self.user,
+            vendor=self.vendor,
+        )
+        self.category = Category.objects.create(name="Analytics Category")
+        self.client.force_login(self.user)
+
+    def create_product(self, vendor, name, category=None):
+        return Product.objects.create(
+            vendor=vendor,
+            category=category or self.category,
+            name=name,
+            description="Analytics test product",
+            brand="Test brand",
+            daily_rate=Decimal("10.00"),
+        )
+
+    def create_variant(self, product, sku, size="M"):
+        return ProductVariant.objects.create(
+            product=product,
+            sku=sku,
+            size=size,
+            colour="Blue",
+            total_quantity=10,
+        )
+
+    def create_completed_item(
+        self,
+        vendor,
+        variant,
+        *,
+        quantity=1,
+        name="Analytics rental item",
+    ):
+        order = RentalOrder.objects.create(
+            customer=self.customer,
+            vendor=vendor,
+            delivery_address="1 Analytics Street",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=Decimal("100.00"),
+        )
+        return RentalItem.objects.create(
+            order=order,
+            variant=variant,
+            product_name_snapshot=name,
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=quantity,
+            rental_start_date=date(2026, 11, 1),
+            rental_end_date=date(2026, 11, 1),
+            rental_days=1,
+            line_total=Decimal("10.00"),
+            status=RentalItem.Status.COMPLETED,
+        )
+
+    def test_other_vendor_completed_items_and_settlements_are_excluded(self):
+        own_product = self.create_product(self.vendor, "Own analytics product")
+        own_variant = self.create_variant(
+            own_product,
+            "own-analytics-variant",
+        )
+        own_item = self.create_completed_item(self.vendor, own_variant)
+        RentalSettlement.objects.create(
+            rental_item=own_item,
+            commission_rate_snapshot=Decimal("0.2000"),
+            platform_amount=Decimal("2.00"),
+            vendor_amount=Decimal("8.00"),
+        )
+
+        other_product = self.create_product(
+            self.other_vendor,
+            "Other vendor analytics product",
+        )
+        other_variant = self.create_variant(
+            other_product,
+            "other-analytics-variant",
+        )
+        other_item = self.create_completed_item(
+            self.other_vendor,
+            other_variant,
+            quantity=9,
+        )
+        RentalSettlement.objects.create(
+            rental_item=other_item,
+            commission_rate_snapshot=Decimal("0.2000"),
+            platform_amount=Decimal("90.00"),
+            vendor_amount=Decimal("10.00"),
+        )
+
+        response = self.client.get(reverse("vendor_portal:analytics"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["completed_rental_quantity"], 1)
+        self.assertEqual(
+            list(response.context["popular_products"].values_list(
+                "product_name",
+                flat=True,
+            )),
+            ["Own analytics product"],
+        )
+        self.assertEqual(
+            response.context["platform_commission"],
+            Decimal("2.00"),
+        )
+        self.assertEqual(
+            response.context["vendor_payout"],
+            Decimal("8.00"),
+        )
+        self.assertEqual(
+            response.context["settled_gross_value"],
+            response.context["platform_commission"]
+            + response.context["vendor_payout"],
+        )
+
+    def test_rankings_use_total_quantity_instead_of_row_count(self):
+        lower_category = Category.objects.create(
+            name="Lower volume category",
+        )
+        higher_category = Category.objects.create(
+            name="Higher volume category",
+        )
+        lower_product = self.create_product(
+            self.vendor,
+            "Lower quantity product",
+            lower_category,
+        )
+        lower_variant = self.create_variant(
+            lower_product,
+            "lower-quantity-variant",
+            size="M",
+        )
+        self.create_completed_item(
+            self.vendor,
+            lower_variant,
+            name="First lower quantity item",
+        )
+        self.create_completed_item(
+            self.vendor,
+            lower_variant,
+            name="Second lower quantity item",
+        )
+
+        higher_product = self.create_product(
+            self.vendor,
+            "Higher quantity product",
+            higher_category,
+        )
+        higher_variant = self.create_variant(
+            higher_product,
+            "higher-quantity-variant",
+            size="L",
+        )
+        self.create_completed_item(
+            self.vendor,
+            higher_variant,
+            quantity=5,
+            name="Higher quantity item",
+        )
+
+        response = self.client.get(reverse("vendor_portal:analytics"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["popular_products"].values_list(
+                "product_name",
+                "rental_quantity",
+            )),
+            [
+                ("Higher quantity product", 5),
+                ("Lower quantity product", 2),
+            ],
+        )
+        self.assertEqual(
+            list(response.context["popular_categories"].values_list(
+                "category_name",
+                "rental_quantity",
+            )),
+            [
+                ("Higher volume category", 5),
+                ("Lower volume category", 2),
+            ],
+        )
+        self.assertEqual(
+            list(response.context["popular_sizes"].values_list(
+                "size",
+                "rental_quantity",
+            )),
+            [("L", 5), ("M", 2)],
+        )
+
+    def test_end_date_before_start_date_displays_validation_error(self):
+        response = self.client.get(
+            reverse("vendor_portal:analytics"),
+            {
+                "start_date": "2026-11-02",
+                "end_date": "2026-11-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["form"].is_valid())
+        self.assertContains(
+            response,
+            "The end date must be on or after the start date.",
+        )
 
 
 class RentalSettlementWorkflowTests(TestCase):

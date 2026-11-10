@@ -126,6 +126,42 @@ class RentalOrderFilterForm(forms.Form):
         return cleaned_data
 
 
+class VendorAnalyticsFilterForm(forms.Form):
+    start_date = forms.DateField(
+        required=False,
+        label="From",
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+                "class": "form-control",
+            }
+        ),
+    )
+    end_date = forms.DateField(
+        required=False,
+        label="To",
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+                "class": "form-control",
+            }
+        ),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get("start_date")
+        end_date = cleaned_data.get("end_date")
+
+        if start_date and end_date and end_date < start_date:
+            self.add_error(
+                "end_date",
+                "The end date must be on or after the start date.",
+            )
+
+        return cleaned_data
+
+
 class RentalReturnForm(forms.ModelForm):
     class Meta:
         model = RentalReturn

@@ -1,0 +1,164 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Analytics | {{ vendor.name }}{% endblock %}
+
+{% block content %}
+<header class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+    <div>
+        <p class="text-muted small text-uppercase mb-1">
+            Vendor analytics
+        </p>
+        <h1 class="mb-1">{{ vendor.name }} performance</h1>
+        <p class="text-muted mb-0">
+            Completed rental and settlement performance.
+        </p>
+    </div>
+
+    <a class="btn btn-outline-dark"
+       href="{% url 'vendor_portal:home' %}">
+        Back to dashboard
+    </a>
+</header>
+
+<section class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label" for="{{ form.start_date.id_for_label }}">
+                    {{ form.start_date.label }}
+                </label>
+                {{ form.start_date }}
+                {{ form.start_date.errors }}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label" for="{{ form.end_date.id_for_label }}">
+                    {{ form.end_date.label }}
+                </label>
+                {{ form.end_date }}
+                {{ form.end_date.errors }}
+            </div>
+
+            <div class="col-md-4">
+                <button class="btn btn-dark" type="submit">
+                    Apply filters
+                </button>
+
+                <a class="btn btn-outline-secondary"
+                   href="{% url 'vendor_portal:analytics' %}">
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="performance-summary-heading">
+    <h2 class="h3 mb-3" id="performance-summary-heading">
+        Performance summary
+    </h2>
+
+    <div class="row g-3">
+        {% include "components/metric_card.html" with label="Completed rental quantity" value=completed_rental_quantity %}
+        {% include "components/metric_card.html" with label="Settled gross value" value=settled_gross_value|floatformat:2 prefix="SGD" %}
+        {% include "components/metric_card.html" with label="Vendor payout" value=vendor_payout|floatformat:2 prefix="SGD" %}
+        {% include "components/metric_card.html" with label="Platform commission" value=platform_commission|floatformat:2 prefix="SGD" %}
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="popular-products-heading">
+    <h2 class="h3" id="popular-products-heading">Popular products</h2>
+
+    <div class="table-responsive border rounded">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Product</th>
+                    <th scope="col">Completed quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in popular_products %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ product.product_name }}</td>
+                        <td>{{ product.rental_quantity }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3"
+                            class="text-center text-muted py-4">
+                            No completed rentals for this period.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="popular-categories-heading">
+    <h2 class="h3" id="popular-categories-heading">Popular categories</h2>
+
+    <div class="table-responsive border rounded">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Completed quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in popular_categories %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ category.category_name }}</td>
+                        <td>{{ category.rental_quantity }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3"
+                            class="text-center text-muted py-4">
+                            No completed rentals for this period.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="popular-sizes-heading">
+    <h2 class="h3" id="popular-sizes-heading">Popular sizes</h2>
+
+    <div class="table-responsive border rounded">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Completed quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for size in popular_sizes %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ size.size }}</td>
+                        <td>{{ size.rental_quantity }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3"
+                            class="text-center text-muted py-4">
+                            No completed rentals for this period.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
