@@ -14,6 +14,11 @@ urlpatterns = [
         name="rental_order_list",
     ),
     path(
+        "settlements/",
+        views.platform_settlement_list,
+        name="settlement_list",
+    ),
+    path(
         "vendors/<int:vendor_id>/action/",
         views.platform_vendor_action,
         name="vendor_action",
