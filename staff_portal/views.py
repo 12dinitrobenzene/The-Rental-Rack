@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, F, Prefetch, Q, Sum
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from accounts.permissions import require_platform_admin
 from shop.models import (
@@ -16,7 +16,7 @@ from shop.models import (
 )
 from shop.visibility import visible_products
 
-from .forms import PlatformRentalFilterForm
+from .forms import PlatformRentalFilterForm, SettlementFilterForm
 
 
 @login_required(login_url="accounts:login")
@@ -157,6 +157,61 @@ def platform_rental_order_list(request):
         {
             "filter_form": filter_form,
             "orders": orders,
+        },
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_GET
+def platform_settlement_list(request):
+    require_platform_admin(request.user)
+    filter_form = SettlementFilterForm(request.GET)
+
+    settlements = RentalSettlement.objects.select_related(
+        "rental_item__order__customer",
+        "rental_item__order__vendor",
+        "rental_item__variant",
+    ).order_by("-created_at", "-pk")
+
+    if filter_form.is_valid():
+        vendor = filter_form.cleaned_data["vendor"]
+        date_from = filter_form.cleaned_data["date_from"]
+        date_to = filter_form.cleaned_data["date_to"]
+
+        if vendor:
+            settlements = settlements.filter(
+                rental_item__order__vendor=vendor,
+            )
+
+        if date_from:
+            settlements = settlements.filter(
+                created_at__date__gte=date_from,
+            )
+
+        if date_to:
+            settlements = settlements.filter(
+                created_at__date__lte=date_to,
+            )
+    else:
+        settlements = settlements.none()
+
+    totals = settlements.aggregate(
+        platform_amount=Sum("platform_amount"),
+        vendor_amount=Sum("vendor_amount"),
+    )
+    platform_amount = totals["platform_amount"] or Decimal("0.00")
+    vendor_amount = totals["vendor_amount"] or Decimal("0.00")
+
+    return render(
+        request,
+        "staff_portal/settlements.html",
+        {
+            "filter_form": filter_form,
+            "settlements": settlements,
+            "settlement_count": settlements.count(),
+            "gross_amount": platform_amount + vendor_amount,
+            "platform_amount": platform_amount,
+            "vendor_amount": vendor_amount,
         },
     )
 

@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.roles import (
     CUSTOMER_GROUP,
@@ -542,6 +543,199 @@ class PlatformRentalMonitoringTests(TestCase):
         )
         self.assertFalse(invalid_response.context["filter_form"].is_valid())
         self.assertEqual(list(invalid_response.context["orders"]), [])
+        self.assertContains(
+            invalid_response,
+            "The To date must be on or after the From date.",
+        )
+
+
+class PlatformSettlementOverviewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        groups = {
+            name: Group.objects.get_or_create(name=name)[0]
+            for name in (
+                CUSTOMER_GROUP,
+                PLATFORM_ADMIN_GROUP,
+            )
+        }
+        User = get_user_model()
+        cls.admin = User.objects.create_user(
+            username="settlement-admin",
+            password="test-password",
+        )
+        cls.admin.groups.add(groups[PLATFORM_ADMIN_GROUP])
+        cls.customer = User.objects.create_user(
+            username="settlement-customer",
+            password="test-password",
+        )
+        cls.customer.groups.add(groups[CUSTOMER_GROUP])
+
+        cls.vendor_one = Vendor.objects.create(
+            name="Settlement Studio",
+            contact_email="settlement-studio@example.com",
+        )
+        cls.vendor_two = Vendor.objects.create(
+            name="Payout Wardrobe",
+            contact_email="payout-wardrobe@example.com",
+        )
+        category = Category.objects.create(name="Settlement Clothing")
+
+        cls.first_settlement = cls._create_settlement(
+            cls.vendor_one,
+            category,
+            "Settlement Blazer",
+            "settlement-blazer-m",
+            Decimal("20.00"),
+            Decimal("0.2500"),
+            Decimal("5.00"),
+            Decimal("15.00"),
+        )
+        cls.second_settlement = cls._create_settlement(
+            cls.vendor_two,
+            category,
+            "Payout Coat",
+            "payout-coat-l",
+            Decimal("30.00"),
+            Decimal("0.2000"),
+            Decimal("6.00"),
+            Decimal("24.00"),
+        )
+
+        RentalSettlement.objects.filter(
+            pk=cls.first_settlement.pk,
+        ).update(
+            created_at=timezone.make_aware(
+                datetime(2026, 10, 10, 10, 0),
+            ),
+        )
+        RentalSettlement.objects.filter(
+            pk=cls.second_settlement.pk,
+        ).update(
+            created_at=timezone.make_aware(
+                datetime(2026, 11, 10, 10, 0),
+            ),
+        )
+
+    @classmethod
+    def _create_settlement(
+        cls,
+        vendor,
+        category,
+        product_name,
+        sku,
+        line_total,
+        commission_rate,
+        platform_amount,
+        vendor_amount,
+    ):
+        product = Product.objects.create(
+            vendor=vendor,
+            category=category,
+            name=product_name,
+            description="Clothing used for settlement tests.",
+            brand="Test",
+            daily_rate=line_total,
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku=sku,
+            size="M",
+            colour="Black",
+            total_quantity=1,
+        )
+        order = RentalOrder.objects.create(
+            customer=cls.customer,
+            vendor=vendor,
+            delivery_address="1 Settlement Street",
+            payment_status=RentalOrder.PaymentStatus.PAID,
+            total_amount=line_total,
+        )
+        item = RentalItem.objects.create(
+            order=order,
+            variant=variant,
+            product_name_snapshot=product_name,
+            daily_rate_snapshot=line_total,
+            commission_rate_snapshot=commission_rate,
+            quantity=1,
+            rental_start_date=date(2026, 10, 1),
+            rental_end_date=date(2026, 10, 1),
+            rental_days=1,
+            line_total=line_total,
+            status=RentalItem.Status.COMPLETED,
+        )
+        return RentalSettlement.objects.create(
+            rental_item=item,
+            commission_rate_snapshot=commission_rate,
+            platform_amount=platform_amount,
+            vendor_amount=vendor_amount,
+        )
+
+    def setUp(self):
+        self.url = reverse("staff_portal:settlement_list")
+
+    def test_page_is_admin_only_read_only_and_uses_saved_amounts(self):
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+        self.client.force_login(self.customer)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "staff_portal/settlements.html")
+        self.assertEqual(response.context["settlement_count"], 2)
+        self.assertEqual(response.context["gross_amount"], Decimal("50.00"))
+        self.assertEqual(
+            response.context["platform_amount"],
+            Decimal("11.00"),
+        )
+        self.assertEqual(
+            response.context["vendor_amount"],
+            Decimal("39.00"),
+        )
+        for expected_text in (
+            "Settlement Blazer",
+            "Settlement Studio",
+            "settlement-customer",
+            "25.00%",
+            "Read-only financial record",
+        ):
+            self.assertContains(response, expected_text)
+        self.assertEqual(self.client.post(self.url).status_code, 405)
+
+    def test_vendor_and_settlement_date_filters_update_results_and_totals(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            self.url,
+            {
+                "vendor": self.vendor_two.pk,
+                "date_from": "2026-11-01",
+                "date_to": "2026-11-30",
+            },
+        )
+
+        self.assertEqual(
+            list(response.context["settlements"]),
+            [self.second_settlement],
+        )
+        self.assertEqual(response.context["settlement_count"], 1)
+        self.assertEqual(response.context["gross_amount"], Decimal("30.00"))
+        self.assertNotContains(response, "Settlement Blazer")
+
+        invalid_response = self.client.get(
+            self.url,
+            {
+                "date_from": "2026-11-30",
+                "date_to": "2026-11-01",
+            },
+        )
+        self.assertFalse(invalid_response.context["filter_form"].is_valid())
+        self.assertEqual(
+            list(invalid_response.context["settlements"]),
+            [],
+        )
         self.assertContains(
             invalid_response,
             "The To date must be on or after the From date.",
