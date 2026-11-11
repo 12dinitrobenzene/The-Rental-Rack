@@ -1,0 +1,483 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}How it works | {{ shop_name }}{% endblock %}
+
+{% block content %}
+<div class="guide-page">
+    <section class="guide-hero py-5">
+        <div class="row align-items-end g-4">
+            <div class="col-lg-8">
+                <p class="guide-eyebrow mb-3">
+                    How it works
+                </p>
+
+                <h1 class="guide-title mb-4">
+                    Rent an outfit in four simple steps.
+                </h1>
+
+                <p class="lead text-muted mb-0 guide-intro">
+                    Discover new styles without committing to permanent
+                    ownership. {{ shop_name }} makes it easy to find, rent and
+                    return clothing from approved vendors.
+                </p>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="d-flex flex-wrap justify-content-lg-end gap-2">
+                    <a class="btn btn-dark"
+                       href="{% url 'customer:catalogue' %}">
+                        Browse the catalogue
+                    </a>
+
+                    {% if user.is_authenticated %}
+                        <a class="btn btn-outline-dark"
+                           href="{% url 'customer:order_history' %}">
+                            View your orders
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="guide-section py-5"
+             aria-labelledby="rental-steps-heading">
+        <div class="mb-5">
+            <p class="guide-eyebrow mb-2">
+                The rental process
+            </p>
+
+            <h2 class="guide-section-title mb-0"
+                id="rental-steps-heading">
+                From discovery to return
+            </h2>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="card guide-step-card h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="guide-step-card__number">01</span>
+                            <span class="guide-step-card__icon" aria-hidden="true">
+                                <i class="bi bi-stars"></i>
+                            </span>
+                        </div>
+
+                        <h3 class="h4 mt-4 mb-3">Discover your style</h3>
+
+                        <p class="text-muted mb-0">
+                            Browse the full catalogue or complete our style
+                            quiz to receive recommendations based on your
+                            fashion preferences.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="card guide-step-card h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="guide-step-card__number">02</span>
+                            <span class="guide-step-card__icon" aria-hidden="true">
+                                <i class="bi bi-calendar-range"></i>
+                            </span>
+                        </div>
+
+                        <h3 class="h4 mt-4 mb-3">Choose your rental</h3>
+
+                        <p class="text-muted mb-0">
+                            Select your preferred size, colour, quantity and
+                            rental dates. Availability is checked against
+                            existing reservations.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="card guide-step-card h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="guide-step-card__number">03</span>
+                            <span class="guide-step-card__icon" aria-hidden="true">
+                                <i class="bi bi-bag-check"></i>
+                            </span>
+                        </div>
+
+                        <h3 class="h4 mt-4 mb-3">Confirm your order</h3>
+
+                        <p class="text-muted mb-0">
+                            Review your selected items, delivery details,
+                            rental period and total amount before completing
+                            checkout.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="card guide-step-card h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="guide-step-card__number">04</span>
+                            <span class="guide-step-card__icon" aria-hidden="true">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </span>
+                        </div>
+
+                        <h3 class="h4 mt-4 mb-3">Wear and return</h3>
+
+                        <p class="text-muted mb-0">
+                            Follow the rental as the vendor prepares and
+                            dispatches it. Enjoy your outfit and return it by
+                            the agreed date.
+                        </p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="guide-section guide-status-section py-5"
+             aria-labelledby="rental-status-heading">
+        <div class="text-center mx-auto mb-5 guide-section-intro">
+            <p class="guide-eyebrow mb-2">Track your order</p>
+
+            <h2 class="guide-section-title mb-3" id="rental-status-heading">
+                Your rental journey
+            </h2>
+
+            <p class="text-muted mb-0">
+                Each item is tracked separately, so products within the same
+                order may progress at different times.
+            </p>
+        </div>
+
+        <div class="rental-flowchart"
+             role="list"
+             aria-label="Normal rental status journey">
+            <article class="rental-flowchart__node" role="listitem">
+                <span class="rental-flowchart__icon" aria-hidden="true">
+                    <i class="bi bi-check-lg"></i>
+                </span>
+
+                <span class="rental-flowchart__step">Step 1</span>
+                <h3 class="h5 mb-2">Confirmed</h3>
+
+                <p class="small text-muted mb-0">
+                    Your rental has been successfully placed.
+                </p>
+            </article>
+
+            <span class="rental-flowchart__connector" aria-hidden="true">
+                <i class="bi bi-arrow-right"></i>
+            </span>
+
+            <article class="rental-flowchart__node" role="listitem">
+                <span class="rental-flowchart__icon" aria-hidden="true">
+                    <i class="bi bi-box-seam"></i>
+                </span>
+
+                <span class="rental-flowchart__step">Step 2</span>
+                <h3 class="h5 mb-2">Preparing</h3>
+
+                <p class="small text-muted mb-0">
+                    The vendor is preparing your item.
+                </p>
+            </article>
+
+            <span class="rental-flowchart__connector" aria-hidden="true">
+                <i class="bi bi-arrow-right"></i>
+            </span>
+
+            <article class="rental-flowchart__node" role="listitem">
+                <span class="rental-flowchart__icon" aria-hidden="true">
+                    <i class="bi bi-truck"></i>
+                </span>
+
+                <span class="rental-flowchart__step">Step 3</span>
+                <h3 class="h5 mb-2">Dispatched</h3>
+
+                <p class="small text-muted mb-0">
+                    Your item has been sent out.
+                </p>
+            </article>
+
+            <span class="rental-flowchart__connector" aria-hidden="true">
+                <i class="bi bi-arrow-right"></i>
+            </span>
+
+            <article class="rental-flowchart__node" role="listitem">
+                <span class="rental-flowchart__icon" aria-hidden="true">
+                    <i class="bi bi-bag-heart"></i>
+                </span>
+
+                <span class="rental-flowchart__step">Step 4</span>
+                <h3 class="h5 mb-2">Active</h3>
+
+                <p class="small text-muted mb-0">
+                    Your rental period is in progress.
+                </p>
+            </article>
+
+            <span class="rental-flowchart__connector" aria-hidden="true">
+                <i class="bi bi-arrow-right"></i>
+            </span>
+
+            <article class="rental-flowchart__node" role="listitem">
+                <span class="rental-flowchart__icon" aria-hidden="true">
+                    <i class="bi bi-arrow-return-left"></i>
+                </span>
+
+                <span class="rental-flowchart__step">Step 5</span>
+                <h3 class="h5 mb-2">Returned</h3>
+
+                <p class="small text-muted mb-0">
+                    The item has been returned for inspection.
+                </p>
+            </article>
+
+            <span class="rental-flowchart__connector" aria-hidden="true">
+                <i class="bi bi-arrow-right"></i>
+            </span>
+
+            <article class="rental-flowchart__node rental-flowchart__node--complete"
+                     role="listitem">
+                <span class="rental-flowchart__icon" aria-hidden="true">
+                    <i class="bi bi-check-circle"></i>
+                </span>
+
+                <span class="rental-flowchart__step">Step 6</span>
+                <h3 class="h5 mb-2">Completed</h3>
+
+                <p class="small text-muted mb-0">
+                    Inspection and settlement are complete.
+                </p>
+            </article>
+        </div>
+
+        <div class="guide-note mt-5">
+            <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
+            If an item is not returned by its due date, the vendor may mark
+            the item as overdue.
+        </div>
+    </section>
+
+    <section class="guide-section py-5"
+             aria-labelledby="before-renting-heading">
+        <div class="mb-5">
+            <p class="guide-eyebrow mb-2">Before you rent</p>
+            <h2 class="guide-section-title mb-0" id="before-renting-heading">
+                A few things to know
+            </h2>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-4">
+                <article class="card guide-info-card h-100">
+                    <div class="card-body p-4">
+                        <span class="guide-info-card__icon" aria-hidden="true">
+                            <i class="bi bi-calendar2-check"></i>
+                        </span>
+                        <h3 class="h5 mt-4">Availability</h3>
+                        <p class="text-muted mb-0">
+                            Availability depends on your selected variant,
+                            physical stock and reservations for your chosen
+                            dates.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-md-4">
+                <article class="card guide-info-card h-100">
+                    <div class="card-body p-4">
+                        <span class="guide-info-card__icon" aria-hidden="true">
+                            <i class="bi bi-cash-coin"></i>
+                        </span>
+                        <h3 class="h5 mt-4">Rental pricing</h3>
+                        <p class="text-muted mb-0">
+                            Every product has a daily rental rate. Your total
+                            depends on the selected duration and quantity.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-md-4">
+                <article class="card guide-info-card h-100">
+                    <div class="card-body p-4">
+                        <span class="guide-info-card__icon" aria-hidden="true">
+                            <i class="bi bi-x-circle"></i>
+                        </span>
+                        <h3 class="h5 mt-4">Cancellations</h3>
+                        <p class="text-muted mb-0">
+                            Eligible rental items can be cancelled while they
+                            are still confirmed or being prepared.
+                        </p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="guide-section py-5"
+             aria-labelledby="guide-faq-heading">
+        <div class="row g-5">
+            <div class="col-lg-4">
+                <p class="guide-eyebrow mb-2">Common questions</p>
+                <h2 class="guide-section-title" id="guide-faq-heading">
+                    Frequently asked questions
+                </h2>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="accordion guide-accordion" id="guideAccordion">
+                    <div class="accordion-item">
+                        <h3 class="accordion-header">
+                            <button class="accordion-button"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#guideAvailability"
+                                    aria-expanded="true"
+                                    aria-controls="guideAvailability">
+                                How do I know whether an item is available?
+                            </button>
+                        </h3>
+                        <div id="guideAvailability"
+                             class="accordion-collapse collapse show"
+                             data-bs-parent="#guideAccordion">
+                            <div class="accordion-body">
+                                Select the product variant, quantity and rental
+                                dates. The application checks available stock
+                                against existing reservations before allowing
+                                the item to be added to your cart.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h3 class="accordion-header">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#guidePrice"
+                                    aria-expanded="false"
+                                    aria-controls="guidePrice">
+                                How is the rental total calculated?
+                            </button>
+                        </h3>
+                        <div id="guidePrice"
+                             class="accordion-collapse collapse"
+                             data-bs-parent="#guideAccordion">
+                            <div class="accordion-body">
+                                The rental total is based on the product's
+                                daily rate, the number of rental days and the
+                                quantity selected.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h3 class="accordion-header">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#guideCancellation"
+                                    aria-expanded="false"
+                                    aria-controls="guideCancellation">
+                                Can I cancel a rental?
+                            </button>
+                        </h3>
+                        <div id="guideCancellation"
+                             class="accordion-collapse collapse"
+                             data-bs-parent="#guideAccordion">
+                            <div class="accordion-body">
+                                Eligible items can be cancelled while they are
+                                in the Confirmed or Preparing stage. Once
+                                fulfilment progresses further, cancellation is
+                                no longer available.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h3 class="accordion-header">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#guideTracking"
+                                    aria-expanded="false"
+                                    aria-controls="guideTracking">
+                                Where can I monitor my rental?
+                            </button>
+                        </h3>
+                        <div id="guideTracking"
+                             class="accordion-collapse collapse"
+                             data-bs-parent="#guideAccordion">
+                            <div class="accordion-body">
+                                Sign in and open your order history. Each
+                                rental item displays its current fulfilment
+                                status and rental dates.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <h3 class="accordion-header">
+                            <button class="accordion-button collapsed"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#guideOverdue"
+                                    aria-expanded="false"
+                                    aria-controls="guideOverdue">
+                                What happens if an item is overdue?
+                            </button>
+                        </h3>
+                        <div id="guideOverdue"
+                             class="accordion-collapse collapse"
+                             data-bs-parent="#guideAccordion">
+                            <div class="accordion-body">
+                                If an item is not returned by its agreed return
+                                date, the vendor can mark it as overdue. Return
+                                overdue items as soon as possible so the rental
+                                can proceed to inspection and completion.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="guide-cta my-5">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <p class="guide-cta__eyebrow mb-2">Ready to begin?</p>
+                <h2 class="h3 mb-3">
+                    Find an outfit for your next occasion.
+                </h2>
+                <p class="mb-0">
+                    Explore clothing from approved vendors or complete the
+                    style quiz to receive personalised recommendations.
+                </p>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="d-flex flex-wrap justify-content-lg-end gap-2">
+                    <a class="btn btn-light"
+                       href="{% url 'customer:catalogue' %}">
+                        Browse catalogue
+                    </a>
+                    <a class="btn btn-outline-light"
+                       href="{% url 'customer:style_preferences' %}">
+                        Take the style quiz
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

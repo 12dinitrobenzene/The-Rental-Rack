@@ -61,6 +61,28 @@ class AboutUsPageTests(TestCase):
         )
 
 
+class CustomerGuidePageTests(TestCase):
+    def test_guide_page_renders_rental_steps_and_faq(self):
+        response = self.client.get(reverse("customer:guide"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "customer/guide.html")
+        self.assertEqual(response.context["shop_name"], "The Rental Rack")
+        for expected_text in (
+            "Rent an outfit in four simple steps.",
+            "Discover your style",
+            "Choose your rental",
+            "Confirm your order",
+            "Wear and return",
+            "Your rental journey",
+            "Frequently asked questions",
+            "Browse the catalogue",
+        ):
+            self.assertContains(response, expected_text)
+        self.assertNotContains(response, "coming soon")
+        self.assertNotContains(response, "View your orders")
+
+
 class RentalItemValidationTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(

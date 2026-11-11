@@ -87,13 +87,7 @@ urlpatterns = [
     ),
     path(
         "guide/",
-        views.customer_placeholder,
-        {
-            "title": "How it works",
-            "message": (
-                "Our guide to choosing, renting and returning clothing is coming soon."
-            ),
-        },
+        views.customer_guide,
         name="guide",
     ),
     path(

@@ -901,3 +901,274 @@ body {
         object-position: center 35%;
     }
 }
+
+/* How-it-works guide */
+
+.guide-page {
+    --guide-ink: #252520;
+    --guide-muted: #6e6a60;
+    --guide-border: #ded9cf;
+    --guide-surface: #f5f2ea;
+    --guide-accent: #656b54;
+
+    color: var(--guide-ink);
+}
+
+.guide-eyebrow,
+.guide-cta__eyebrow {
+    color: var(--guide-accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.guide-title {
+    max-width: 52rem;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(3rem, 7vw, 5.75rem);
+    font-weight: 400;
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+}
+
+.guide-intro {
+    max-width: 48rem;
+}
+
+.guide-section {
+    border-top: 1px solid var(--guide-border);
+}
+
+.guide-section-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    font-weight: 400;
+    line-height: 1.08;
+}
+
+.guide-section-intro {
+    max-width: 46rem;
+}
+
+.guide-step-card,
+.guide-info-card {
+    overflow: hidden;
+    border: 1px solid var(--guide-border);
+    border-radius: 1.25rem;
+    background: #fff;
+    box-shadow: 0 0.35rem 1.25rem rgba(37, 37, 32, 0.05);
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        border-color 160ms ease;
+}
+
+.guide-step-card:hover,
+.guide-info-card:hover {
+    transform: translateY(-4px);
+    border-color: #a9ad9a;
+    box-shadow: 0 0.75rem 2rem rgba(37, 37, 32, 0.1);
+}
+
+.guide-step-card__number {
+    color: #8a867d;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.1rem;
+}
+
+.guide-step-card__icon,
+.guide-info-card__icon {
+    display: grid;
+    width: 3.25rem;
+    height: 3.25rem;
+    place-items: center;
+    border-radius: 50%;
+    background: #eef0e8;
+    color: var(--guide-accent);
+    font-size: 1.25rem;
+}
+
+.guide-status-section {
+    background: var(--guide-surface);
+}
+
+.rental-flowchart {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr) 2.5rem
+        minmax(0, 1fr) 2.5rem
+        minmax(0, 1fr) 2.5rem
+        minmax(0, 1fr) 2.5rem
+        minmax(0, 1fr) 2.5rem
+        minmax(0, 1fr);
+    align-items: stretch;
+    width: 100%;
+}
+
+.rental-flowchart__node {
+    position: relative;
+    min-width: 0;
+    padding: 1.5rem 1rem;
+    border: 1px solid #d4d7ce;
+    border-radius: 1rem;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 0.3rem 1rem rgba(37, 37, 32, 0.05);
+}
+
+.rental-flowchart__node::before {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 0.3rem;
+    border-radius: 1rem 1rem 0 0;
+    background: #656b54;
+    content: "";
+}
+
+.rental-flowchart__node--complete {
+    border-color: #91ad99;
+    background: #f2f8f3;
+}
+
+.rental-flowchart__node--complete::before {
+    background: #198754;
+}
+
+.rental-flowchart__icon {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    place-items: center;
+    border-radius: 50%;
+    background: #eef0e8;
+    color: #4f5947;
+    font-size: 1.25rem;
+}
+
+.rental-flowchart__node--complete .rental-flowchart__icon {
+    background: #dcefe1;
+    color: #198754;
+}
+
+.rental-flowchart__step {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #7a776e;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.rental-flowchart__connector {
+    position: relative;
+    display: grid;
+    place-items: center;
+    color: #767b6c;
+    font-size: 1.25rem;
+}
+
+.rental-flowchart__connector::before {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 0;
+    height: 1px;
+    background: #bfc3b7;
+    content: "";
+}
+
+.rental-flowchart__connector i {
+    position: relative;
+    z-index: 1;
+    padding: 0.2rem;
+    background: #f5f2ea;
+}
+
+.guide-note {
+    padding: 1rem 1.25rem;
+    border-left: 0.25rem solid #d97706;
+    background: #fff;
+    color: #5f5a50;
+}
+
+.guide-accordion .accordion-item {
+    border-color: var(--guide-border);
+}
+
+.guide-accordion .accordion-button {
+    padding: 1.25rem;
+    font-weight: 600;
+}
+
+.guide-accordion .accordion-button:not(.collapsed) {
+    background: var(--guide-surface);
+    color: var(--guide-ink);
+    box-shadow: none;
+}
+
+.guide-accordion .accordion-button:focus {
+    border-color: var(--guide-accent);
+    box-shadow: 0 0 0 0.2rem rgba(101, 107, 84, 0.2);
+}
+
+.guide-cta {
+    padding: clamp(2rem, 5vw, 4rem);
+    background: #283d32;
+    color: #fff;
+}
+
+.guide-cta__eyebrow {
+    color: #c4d4c6;
+}
+
+.guide-cta p:not(.guide-cta__eyebrow) {
+    color: #e1e8e2;
+}
+
+@media (max-width: 1199.98px) {
+    .rental-flowchart {
+        grid-template-columns: 1fr;
+        max-width: 38rem;
+        margin-inline: auto;
+    }
+
+    .rental-flowchart__node {
+        padding: 1.5rem;
+        text-align: left;
+    }
+
+    .rental-flowchart__icon {
+        margin: 0 0 1rem;
+    }
+
+    .rental-flowchart__connector {
+        min-height: 3rem;
+    }
+
+    .rental-flowchart__connector::before {
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+        height: auto;
+    }
+
+    .rental-flowchart__connector i {
+        transform: rotate(90deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .guide-step-card,
+    .guide-info-card {
+        transition: none;
+    }
+
+    .guide-step-card:hover,
+    .guide-info-card:hover {
+        transform: none;
+    }
+}
