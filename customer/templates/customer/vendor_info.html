@@ -1,0 +1,325 @@
+{% extends "customer/layouts/storefront.html" %}
+
+{% block title %}Become a vendor | The Rental Rack{% endblock %}
+
+{% block content %}
+<div class="vendor-info-page">
+    <section class="vendor-info-hero py-5">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-7">
+                <p class="vendor-info-eyebrow mb-3">
+                    For clothing vendors
+                </p>
+
+                <h1 class="vendor-info-title mb-4">
+                    Bring your collection to The Rental Rack.
+                </h1>
+
+                <p class="lead text-muted mb-4 vendor-info-intro">
+                    Reach customers who want to explore new styles and manage
+                    your clothing-rental business through one convenient
+                    workspace.
+                </p>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-dark btn-lg"
+                       href="{% url 'accounts:register_vendor' %}">
+                        Register your company
+                        <i class="bi bi-arrow-right ms-1"
+                           aria-hidden="true"></i>
+                    </a>
+
+                    <a class="btn btn-outline-dark btn-lg"
+                       href="#vendor-registration-process">
+                        See how it works
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <aside class="vendor-workspace-card">
+                    <span class="vendor-workspace-card__icon"
+                          aria-hidden="true">
+                        <i class="bi bi-shop"></i>
+                    </span>
+
+                    <h2 class="h3 mt-4 mb-3">
+                        One workspace for your company
+                    </h2>
+
+                    <p class="text-muted mb-0">
+                        Manage your products, variants, stock, employees,
+                        rental orders, returns, settlements and performance
+                        analytics from one protected vendor workspace.
+                    </p>
+                </aside>
+            </div>
+        </div>
+    </section>
+
+    <section class="vendor-info-section py-5"
+             aria-labelledby="vendor-benefits-heading">
+        <div class="vendor-info-heading text-center mx-auto mb-5">
+            <p class="vendor-info-eyebrow mb-2">
+                Why join us?
+            </p>
+
+            <h2 class="vendor-info-section-title"
+                id="vendor-benefits-heading">
+                Tools for managing your rental business
+            </h2>
+
+            <p class="text-muted mt-3 mb-0">
+                The Rental Rack helps approved vendors manage their catalogue,
+                fulfil customer rentals and understand their performance.
+            </p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="card vendor-benefit-card h-100">
+                    <div class="card-body p-4">
+                        <span class="vendor-benefit-card__icon"
+                              aria-hidden="true">
+                            <i class="bi bi-people"></i>
+                        </span>
+
+                        <h3 class="h5 mt-4 mb-3">
+                            Reach new customers
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Make your collection available to customers who
+                            want to experiment with different styles and rent
+                            clothing for specific occasions.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="card vendor-benefit-card h-100">
+                    <div class="card-body p-4">
+                        <span class="vendor-benefit-card__icon"
+                              aria-hidden="true">
+                            <i class="bi bi-boxes"></i>
+                        </span>
+
+                        <h3 class="h5 mt-4 mb-3">
+                            Manage your inventory
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Create product listings, add size and colour
+                            variants, upload images and monitor your physical
+                            stock quantities.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="card vendor-benefit-card h-100">
+                    <div class="card-body p-4">
+                        <span class="vendor-benefit-card__icon"
+                              aria-hidden="true">
+                            <i class="bi bi-bag-check"></i>
+                        </span>
+
+                        <h3 class="h5 mt-4 mb-3">
+                            Fulfil rental orders
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Prepare and dispatch rental items, record returns,
+                            complete inspections and monitor item-level
+                            fulfilment statuses.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-6 col-xl-3">
+                <article class="card vendor-benefit-card h-100">
+                    <div class="card-body p-4">
+                        <span class="vendor-benefit-card__icon"
+                              aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </span>
+
+                        <h3 class="h5 mt-4 mb-3">
+                            Understand performance
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Monitor completed rental quantities, payouts and
+                            the popularity of your products, categories and
+                            sizes.
+                        </p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="vendor-info-section vendor-process py-5"
+             id="vendor-registration-process"
+             aria-labelledby="vendor-process-heading">
+        <div class="row g-5">
+            <div class="col-lg-4">
+                <p class="vendor-info-eyebrow mb-2">
+                    Getting started
+                </p>
+
+                <h2 class="vendor-info-section-title"
+                    id="vendor-process-heading">
+                    From registration to your first listing
+                </h2>
+
+                <p class="text-muted mt-3 mb-0">
+                    Your company must be reviewed by a platform administrator
+                    before its products become publicly available.
+                </p>
+            </div>
+
+            <div class="col-lg-8">
+                <ol class="vendor-process-list list-unstyled mb-0">
+                    <li class="vendor-process-list__item">
+                        <span class="vendor-process-list__number"
+                              aria-hidden="true">1</span>
+                        <div>
+                            <h3 class="h5 mb-2">
+                                Register your company
+                            </h3>
+                            <p class="text-muted mb-0">
+                                Provide your company name, contact information
+                                and address. You will also create the first
+                                manager account for your company.
+                            </p>
+                        </div>
+                    </li>
+
+                    <li class="vendor-process-list__item">
+                        <span class="vendor-process-list__number"
+                              aria-hidden="true">2</span>
+                        <div>
+                            <h3 class="h5 mb-2">
+                                Wait for platform approval
+                            </h3>
+                            <p class="text-muted mb-0">
+                                A platform administrator reviews your company
+                                registration. Your listings will remain hidden
+                                until the company is approved.
+                            </p>
+                        </div>
+                    </li>
+
+                    <li class="vendor-process-list__item">
+                        <span class="vendor-process-list__number"
+                              aria-hidden="true">3</span>
+                        <div>
+                            <h3 class="h5 mb-2">
+                                Build your catalogue
+                            </h3>
+                            <p class="text-muted mb-0">
+                                Add product descriptions, categories, daily
+                                rental rates, style tags, images, variants and
+                                physical stock quantities.
+                            </p>
+                        </div>
+                    </li>
+
+                    <li class="vendor-process-list__item">
+                        <span class="vendor-process-list__number"
+                              aria-hidden="true">4</span>
+                        <div>
+                            <h3 class="h5 mb-2">
+                                Publish and fulfil rentals
+                            </h3>
+                            <p class="text-muted mb-0">
+                                Publish eligible listings, process customer
+                                rental orders and monitor your company’s
+                                operational and financial performance.
+                            </p>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    <section class="vendor-info-section py-5"
+             aria-labelledby="registration-requirements-heading">
+        <div class="row g-5">
+            <div class="col-lg-5">
+                <p class="vendor-info-eyebrow mb-2">
+                    Before registering
+                </p>
+
+                <h2 class="vendor-info-section-title"
+                    id="registration-requirements-heading">
+                    Have your company information ready
+                </h2>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="vendor-requirements">
+                    <div class="vendor-requirement">
+                        <i class="bi bi-building" aria-hidden="true"></i>
+                        <span>Company name</span>
+                    </div>
+
+                    <div class="vendor-requirement">
+                        <i class="bi bi-envelope" aria-hidden="true"></i>
+                        <span>Company email address</span>
+                    </div>
+
+                    <div class="vendor-requirement">
+                        <i class="bi bi-telephone" aria-hidden="true"></i>
+                        <span>Contact telephone number</span>
+                    </div>
+
+                    <div class="vendor-requirement">
+                        <i class="bi bi-geo-alt" aria-hidden="true"></i>
+                        <span>Business or collection address</span>
+                    </div>
+
+                    <div class="vendor-requirement">
+                        <i class="bi bi-person-badge" aria-hidden="true"></i>
+                        <span>Manager account details</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="vendor-registration-cta my-5">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <p class="vendor-registration-cta__eyebrow mb-2">
+                    Ready to join?
+                </p>
+
+                <h2 class="h2 mb-3">
+                    Register your company with The Rental Rack.
+                </h2>
+
+                <p class="mb-0">
+                    You will become your company’s first manager. A platform
+                    administrator will review your registration before your
+                    listings can become publicly visible.
+                </p>
+            </div>
+
+            <div class="col-lg-4 text-lg-end">
+                <a class="btn btn-light btn-lg"
+                   href="{% url 'accounts:register_vendor' %}">
+                    Register your company
+                    <i class="bi bi-arrow-right ms-1"
+                       aria-hidden="true"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

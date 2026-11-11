@@ -283,6 +283,13 @@ def customer_guide(request):
     )
 
 
+def vendor_info(request):
+    return render(
+        request,
+        "customer/vendor_info.html",
+    )
+
+
 def product_detail(request, product_id):
     product = get_object_or_404(
         visible_products(),
