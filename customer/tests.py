@@ -83,6 +83,27 @@ class CustomerGuidePageTests(TestCase):
         self.assertNotContains(response, "View your orders")
 
 
+class VendorInformationPageTests(TestCase):
+    def test_vendor_information_page_links_to_company_registration(self):
+        response = self.client.get(
+            reverse("customer:vendor_info")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "customer/vendor_info.html",
+        )
+        self.assertContains(
+            response,
+            reverse("accounts:register_vendor"),
+        )
+        self.assertContains(
+            response,
+            "Register your company",
+        )
+
+
 class RentalItemValidationTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(

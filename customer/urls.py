@@ -92,11 +92,7 @@ urlpatterns = [
     ),
     path(
         "vendor_info/",
-        views.customer_placeholder,
-        {
-            "title": "Become a vendor",
-            "message": "Learn about joining our marketplace and renting out your collection.",
-        },
+        views.vendor_info,
         name="vendor_info",
     ),
 ]
