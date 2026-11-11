@@ -269,8 +269,8 @@ class PlatformDashboardTests(TestCase):
             response.context["settled_gross"],
             Decimal("30.00"),
         )
-        self.assertContains(response, "Marketplace summary")
-        self.assertContains(response, "Catalogue-visible listings")
+        self.assertContains(response, "Marketplace activity")
+        self.assertContains(response, "Visible listings")
         self.assertContains(response, "Vendor performance")
 
     def test_vendor_performance_and_recent_orders_are_ordered(self):

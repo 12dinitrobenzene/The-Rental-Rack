@@ -571,3 +571,146 @@ body {
         width: 36px;
     }
 }
+
+/* Shared dashboard metric cards */
+
+.metric-card {
+    --metric-accent: #495057;
+
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e2e5e8;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 0.25rem 1rem rgba(33, 37, 41, 0.06);
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.metric-card::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0.3rem;
+    background: var(--metric-accent);
+    content: "";
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1.5rem rgba(33, 37, 41, 0.1);
+}
+
+.metric-card--success {
+    --metric-accent: #198754;
+}
+
+.metric-card--danger {
+    --metric-accent: #dc3545;
+}
+
+.metric-card--financial {
+    --metric-accent: #6f5b3e;
+    background: linear-gradient(135deg, #fff 0%, #faf8f3 100%);
+}
+
+.metric-card__label {
+    color: #687078;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.065em;
+    text-transform: uppercase;
+}
+
+.metric-card__value {
+    color: #212529;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.metric-card__prefix {
+    font-size: 0.6em;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.metric-card__icon {
+    display: grid;
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: #f1f3f5;
+    color: var(--metric-accent);
+    font-size: 1.2rem;
+}
+
+/* Platform dashboard */
+
+.admin-dashboard__eyebrow,
+.admin-dashboard__section-label {
+    color: #6c757d;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.admin-dashboard__header {
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-table-wrapper {
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 0.25rem 1rem rgba(33, 37, 41, 0.04);
+}
+
+.admin-table thead th {
+    padding: 0.9rem 1rem;
+    border-bottom-width: 1px;
+    color: #5f666d;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.admin-table tbody td {
+    padding: 1rem;
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+@media (max-width: 575.98px) {
+    .admin-dashboard__actions {
+        width: 100%;
+    }
+
+    .admin-dashboard__actions .btn {
+        flex: 1 1 100%;
+    }
+
+    .metric-card__value {
+        font-size: 1.8rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .metric-card {
+        transition: none;
+    }
+
+    .metric-card:hover {
+        transform: none;
+    }
+}
