@@ -1,6 +1,6 @@
 <section class="for-you-catalogue py-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h3 mb-0">For you</h2>
+        <h2 class="h3 mb-0">Recommended for you</h2>
     </div>
 
     <div class="row g-4">
@@ -10,16 +10,30 @@
             </div>
         {% empty %}
             <div class="col-12">
-                <p class="text-muted">
-                    No eligible products currently match your
-                    {{ style_profile.predicted_style.display_name }}
-                    style.
-                </p>
+                <div class="for-you-empty-state">
+                    <i class="bi bi-search for-you-empty-icon" aria-hidden="true"></i>
 
-                <a href="{% url 'customer:style_preferences' %}"
-                   class="btn btn-outline-dark">
-                    Update preferences
-                </a>
+                    <div>
+                        <h3 class="h5 mb-2">No matching items available</h3>
+                        <p class="text-muted mb-4">
+                            There is currently no available clothing matching your
+                            {{ style_profile.predicted_style.display_name }}
+                            preferences. You can still browse the full catalogue.
+                        </p>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{% url 'customer:catalogue' %}"
+                               class="btn btn-dark">
+                                Browse all clothing
+                            </a>
+
+                            <a href="{% url 'customer:style_preferences' %}"
+                               class="btn btn-outline-dark">
+                                Change preferences
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         {% endfor %}
     </div>

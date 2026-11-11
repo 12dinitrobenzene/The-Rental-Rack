@@ -338,47 +338,58 @@ body {
 }
 
 .for-you-header {
-    margin-bottom: 4rem;
-    padding: clamp(1.5rem, 5vw, 4rem);
+    display: flex;
+    align-items: center;
+    min-height: clamp(360px, 44vh, 460px);
+    margin-bottom: 2.5rem;
+    padding: clamp(2.5rem, 6vh, 4rem) clamp(2rem, 5vw, 4rem);
     background: #f3f0e9;
 }
 
-.for-you-header nav a {
-    color: inherit;
-}
-
-.for-you-eyebrow {
-    margin-bottom: 1rem;
-    color: #777267;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+.for-you-header-content {
+    width: 100%;
+    max-width: 58rem;
 }
 
 .for-you-title {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(3rem, 7vw, 6rem);
+    font-size: clamp(2.5rem, 5vw, 4rem);
     font-weight: 400;
-    line-height: 0.98;
+    line-height: 1.1;
 }
 
 .for-you-description {
-    max-width: 33rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     color: #65625b;
     font-size: 1.1rem;
-    line-height: 1.7;
+    line-height: 1.45;
+}
+
+.for-you-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.for-you-primary-action,
+.for-you-preferences {
+    box-sizing: border-box;
+    display: inline-flex;
+    flex: 0 0 14rem;
+    align-items: center;
+    justify-content: center;
+    width: 14rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .for-you-preferences {
-    padding: 0.9rem 1.2rem;
     border: 1px solid #252520;
-    border-radius: 0;
     color: #252520;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
 }
 
 .for-you-preferences:hover,
@@ -400,48 +411,52 @@ body {
     color: #252520;
 }
 
-.for-you-header .for-you-feature img {
-    display: block;
-    width: min(100%, 100px);
-    margin-inline: auto;
-    max-height: 125px;
-    aspect-ratio: 4 / 5;
-    object-fit: cover;
-    background: #e3ded3;
-}
-
-.for-you-feature figcaption {
-    padding-top: 0.75rem;
-    color: #65625b;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 1.1rem;
-}
-
-.for-you-filters {
+.for-you-empty-state {
     display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
-    margin-top: 3rem;
-    border-bottom: 1px solid #d5d0c6;
+    gap: 1.25rem;
+    align-items: flex-start;
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    border: 1px solid #ded9cf;
+    background: #faf9f6;
 }
 
-.for-you-filters > * {
-    padding: 0 0 0.8rem;
-    border: 0;
-    background: transparent;
-    color: #777267;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+.for-you-empty-icon {
+    flex: 0 0 auto;
+    font-size: 1.75rem;
 }
 
-.for-you-filters .for-you-filter-active {
-    border-bottom: 2px solid #252520;
-    color: #252520;
+.for-you-empty-state p {
+    max-width: 40rem;
+    line-height: 1.5;
 }
 
-.for-you-filters button:disabled {
-    opacity: 0.55;
+.for-you-empty-state .btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    flex: 0 0 14rem;
+    align-items: center;
+    justify-content: center;
+    width: 14rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 1rem;
+    white-space: nowrap;
+}
+
+@media (max-width: 575.98px) {
+    .for-you-actions .btn,
+    .for-you-empty-state .btn {
+        flex-basis: 100%;
+        width: 100%;
+    }
+
+    .for-you-empty-state {
+        display: block;
+    }
+
+    .for-you-empty-icon {
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
 }
 
 .customer-navbar {

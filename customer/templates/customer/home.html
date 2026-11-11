@@ -5,5 +5,8 @@
 {% block content %}
     {% include "customer/components/for_you_header.html" %}
     {% include "customer/components/for_you_catalogue.html" %}
-    {% include "customer/components/featured_vendors_catalogue.html" %}
+
+    {% if featured_vendors %}
+        {% include "customer/components/featured_vendors_catalogue.html" %}
+    {% endif %}
 {% endblock %}
