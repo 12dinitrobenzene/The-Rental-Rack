@@ -46,6 +46,21 @@ VALID_STYLE_QUIZ = {
 }
 
 
+class AboutUsPageTests(TestCase):
+    def test_about_page_shows_shop_name_story_and_founder_photo(self):
+        response = self.client.get(reverse("customer:about"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "customer/about_us.html")
+        self.assertEqual(response.context["shop_name"], "The Rental Rack")
+        self.assertContains(response, "The Rental Rack")
+        self.assertContains(response, "Chuan Kang and Elgin")
+        self.assertContains(
+            response,
+            "/static/images/about-founders.jpeg",
+        )
+
+
 class RentalItemValidationTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(

@@ -263,6 +263,16 @@ def customer_placeholder(request, title, message):
     )
 
 
+def about_us(request):
+    return render(
+        request,
+        "customer/about_us.html",
+        {
+            "shop_name": "The Rental Rack",
+        },
+    )
+
+
 def product_detail(request, product_id):
     product = get_object_or_404(
         visible_products(),

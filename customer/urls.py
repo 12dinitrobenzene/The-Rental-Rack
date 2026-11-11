@@ -82,11 +82,7 @@ urlpatterns = [
     ),
     path(
         "about_us/",
-        views.customer_placeholder,
-        {
-            "title": "About us",
-            "message": "Discover our story and our approach to clothing rental.",
-        },
+        views.about_us,
         name="about",
     ),
     path(
