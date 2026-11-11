@@ -273,6 +273,16 @@ def about_us(request):
     )
 
 
+def customer_guide(request):
+    return render(
+        request,
+        "customer/guide.html",
+        {
+            "shop_name": "The Rental Rack",
+        },
+    )
+
+
 def product_detail(request, product_id):
     product = get_object_or_404(
         visible_products(),
