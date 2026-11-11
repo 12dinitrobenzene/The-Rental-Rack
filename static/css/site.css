@@ -714,3 +714,60 @@ body {
         transform: none;
     }
 }
+
+/* Shared platform and vendor workspaces */
+
+.workspace-dashboard__eyebrow,
+.workspace-dashboard__section-label {
+    color: #6c757d;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.workspace-dashboard__header {
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.workspace-table-wrapper {
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 0.25rem 1rem rgba(33, 37, 41, 0.04);
+}
+
+.workspace-table thead th {
+    padding: 0.9rem 1rem;
+    border-bottom-width: 1px;
+    color: #5f666d;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.workspace-table tbody td {
+    padding: 1rem;
+}
+
+.workspace-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.metric-card--warning {
+    --metric-accent: #d97706;
+}
+
+@media (max-width: 575.98px) {
+    .workspace-dashboard__actions {
+        width: 100%;
+    }
+
+    .workspace-dashboard__actions .btn {
+        flex: 1 1 100%;
+    }
+}

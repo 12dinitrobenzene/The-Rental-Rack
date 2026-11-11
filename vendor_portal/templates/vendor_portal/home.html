@@ -3,54 +3,112 @@
 {% block title %}{{ vendor.name }} workspace{% endblock %}
 
 {% block content %}
-<header class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
-    <div>
-        <p class="text-muted small text-uppercase mb-1">Vendor workspace</p>
-        <h1 class="mb-1">{{ vendor.name }} inventory</h1>
-        <p class="text-muted mb-0">Manage your company's clothing listings.</p>
-    </div>
-    <a class="btn btn-dark" href="{% url 'vendor_portal:product_create' %}">
-        <i class="bi bi-plus-lg" aria-hidden="true"></i> Add product
-    </a>
-    <a class="btn btn-outline-dark" href="{% url 'vendor_portal:rental_order_list' %}">
-        Rental orders
-    </a>
-    <a class="btn btn-outline-dark"
-       href="{% url 'vendor_portal:analytics' %}">
-        Performance analytics
-    </a>
-    {% if employee.is_vendor_admin %}
-        <a class="btn btn-outline-dark" href="{% url 'accounts:vendor_team' %}">
-            Manage team
-        </a>
-    {% endif %}
-</header>
+<div class="workspace-dashboard">
+    <header class="workspace-dashboard__header d-flex flex-wrap justify-content-between align-items-end gap-4 mb-5">
+        <div>
+            <p class="workspace-dashboard__eyebrow mb-2">
+                Vendor workspace
+            </p>
 
-<section class="mb-5" aria-labelledby="operational-summary-heading">
-    <h2 class="h3 mb-3" id="operational-summary-heading">
-        Operational summary
-    </h2>
+            <h1 class="display-5 fw-semibold mb-2">
+                {{ vendor.name }} inventory
+            </h1>
 
-    <div class="row g-3">
-        {% include "components/metric_card.html" with label="Active rentals" value=active_rentals %}
-        {% include "components/metric_card.html" with label="Awaiting fulfilment" value=awaiting_fulfilment %}
-        {% include "components/metric_card.html" with label="Overdue rentals" value=overdue_rentals %}
-        {% include "components/metric_card.html" with label="Awaiting completion" value=awaiting_completion %}
-        {% include "components/metric_card.html" with label="Active listings" value=active_listings %}
-        {% include "components/metric_card.html" with label="Physical stock" value=total_physical_stock %}
-    </div>
-</section>
+            <p class="text-muted mb-0">
+                Manage listings, fulfil rentals and monitor company performance.
+            </p>
+        </div>
 
-<section aria-labelledby="vendor-products-heading">
-    <h2 id="vendor-products-heading" class="visually-hidden">Your products</h2>
-    <div class="table-responsive border rounded">
-        <table class="table table-hover align-middle mb-0">
+        <div class="workspace-dashboard__actions d-flex flex-wrap gap-2">
+            <a class="btn btn-dark"
+               href="{% url 'vendor_portal:product_create' %}">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+                Add product
+            </a>
+
+            <a class="btn btn-outline-dark"
+               href="{% url 'vendor_portal:rental_order_list' %}">
+                <i class="bi bi-bag-check me-1" aria-hidden="true"></i>
+                Rental orders
+            </a>
+
+            <a class="btn btn-outline-dark"
+               href="{% url 'vendor_portal:analytics' %}">
+                <i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i>
+                Performance analytics
+            </a>
+
+            {% if employee.is_vendor_admin %}
+                <a class="btn btn-outline-dark"
+                   href="{% url 'accounts:vendor_team' %}">
+                    <i class="bi bi-people me-1" aria-hidden="true"></i>
+                    Manage team
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <section class="mb-5" aria-labelledby="operational-summary-heading">
+        <div class="mb-3">
+            <p class="workspace-dashboard__section-label mb-1">
+                Current state
+            </p>
+
+            <h2 class="h3 mb-0" id="operational-summary-heading">
+                Operational summary
+            </h2>
+        </div>
+
+        <div class="row g-3">
+            {% include "components/metric_card.html" with label="Active rentals" value=active_rentals tone="success" icon="bi-arrow-repeat" %}
+
+            {% if awaiting_fulfilment %}
+                {% include "components/metric_card.html" with label="Awaiting fulfilment" value=awaiting_fulfilment tone="warning" icon="bi-box-seam" %}
+            {% else %}
+                {% include "components/metric_card.html" with label="Awaiting fulfilment" value=awaiting_fulfilment tone="neutral" icon="bi-box-seam" %}
+            {% endif %}
+
+            {% if overdue_rentals %}
+                {% include "components/metric_card.html" with label="Overdue rentals" value=overdue_rentals tone="danger" icon="bi-exclamation-triangle" %}
+            {% else %}
+                {% include "components/metric_card.html" with label="Overdue rentals" value=overdue_rentals tone="neutral" icon="bi-exclamation-triangle" %}
+            {% endif %}
+
+            {% if awaiting_completion %}
+                {% include "components/metric_card.html" with label="Awaiting completion" value=awaiting_completion tone="warning" icon="bi-clipboard-check" %}
+            {% else %}
+                {% include "components/metric_card.html" with label="Awaiting completion" value=awaiting_completion tone="neutral" icon="bi-clipboard-check" %}
+            {% endif %}
+
+            {% include "components/metric_card.html" with label="Active listings" value=active_listings tone="success" icon="bi-tags" %}
+
+            {% include "components/metric_card.html" with label="Physical stock" value=total_physical_stock tone="neutral" icon="bi-boxes" %}
+        </div>
+    </section>
+
+    <section aria-labelledby="vendor-products-heading">
+        <div class="mb-3">
+            <p class="workspace-dashboard__section-label mb-1">
+                Catalogue
+            </p>
+
+            <h2 class="h3 mb-1" id="vendor-products-heading">
+                Inventory
+            </h2>
+
+            <p class="text-muted mb-0">
+                Review stock levels, listing status and product details.
+            </p>
+        </div>
+
+        <div class="table-responsive workspace-table-wrapper">
+            <table class="table table-hover align-middle workspace-table mb-0">
             <thead class="table-light">
                 <tr>
                     <th scope="col">Product</th>
                     <th scope="col">Category</th>
-                    <th scope="col">Price</th>
-                    <th scope="col">Stock</th>
+                    <th scope="col" class="text-end">Price</th>
+                    <th scope="col" class="text-end">Stock</th>
                     <th scope="col">Status</th>
                     <th scope="col"><span class="visually-hidden">Actions</span></th>
                 </tr>
@@ -66,8 +124,12 @@
                         <div class="small text-muted">{{ product.brand }}</div>
                     </td>
                     <td>{{ product.category.name }}</td>
-                    <td>SGD {{ product.daily_rate }}/day</td>
-                    <td>{{ product.total_stock }}</td>
+                    <td class="text-end text-nowrap">
+                        SGD {{ product.daily_rate }}/day
+                    </td>
+                    <td class="text-end fw-semibold">
+                        {{ product.total_stock }}
+                    </td>
                     <td><span class="badge text-bg-{{ product.status_style }}">{{ product.status_label }}</span></td>
                     <td class="text-end text-nowrap">
                         <a class="btn btn-sm btn-outline-dark"
@@ -89,8 +151,9 @@
                 </tr>
         {% endfor %}
             </tbody>
-        </table>
-    </div>
-</section>
+            </table>
+        </div>
+    </section>
 
+</div>
 {% endblock %}
