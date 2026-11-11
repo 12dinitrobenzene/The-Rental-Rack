@@ -1,0 +1,213 @@
+{% extends "customer/layouts/storefront.html" %}
+{% load static %}
+
+{% block title %}About us | {{ shop_name }}{% endblock %}
+
+{% block content %}
+<div class="about-page">
+    <section class="about-hero py-5">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <p class="about-eyebrow mb-3">
+                    Our story
+                </p>
+
+                <h1 class="about-title mb-4">
+                    Fashion should be explored, not left unworn.
+                </h1>
+
+                <p class="lead text-muted mb-4">
+                    Hello, assessors! Welcome to {{ shop_name }}, created by
+                    Chuan Kang and Elgin.
+                </p>
+
+                <p>
+                    We created this application because many members of Gen Z
+                    enjoy exploring their personal style but may hesitate to
+                    commit to purchasing an unfamiliar or statement piece.
+                    Clothing can be expensive, trends evolve quickly, and an
+                    item purchased for one occasion may remain unused
+                    afterwards.
+                </p>
+
+                <p>
+                    {{ shop_name }} provides a business-to-consumer clothing
+                    rental marketplace where customers can discover garments
+                    from approved vendors, rent them for a chosen period, and
+                    return them after use. This gives customers greater freedom
+                    to experiment with fashion without needing to purchase
+                    every piece they wish to try.
+                </p>
+
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <a class="btn btn-dark"
+                       href="{% url 'customer:catalogue' %}">
+                        Browse the catalogue
+                    </a>
+
+                    <a class="btn btn-outline-dark"
+                       href="{% url 'customer:guide' %}">
+                        See how it works
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <figure class="about-photo-frame mb-0">
+                    <img
+                        class="about-photo"
+                        src="{% static 'images/about-founders.jpeg' %}"
+                        alt="Project creators Chuan Kang and Elgin standing together on a sailboat"
+                    >
+
+                    <figcaption class="about-photo-caption">
+                        Chuan Kang and Elgin, creators of {{ shop_name }}
+                    </figcaption>
+                </figure>
+            </div>
+        </div>
+    </section>
+
+    <section class="about-story-section py-5"
+             aria-labelledby="about-platform-heading">
+        <div class="row g-5">
+            <div class="col-lg-5">
+                <p class="about-eyebrow mb-2">
+                    The platform
+                </p>
+
+                <h2 class="about-section-title"
+                    id="about-platform-heading">
+                    More than a clothing catalogue
+                </h2>
+            </div>
+
+            <div class="col-lg-7">
+                <p>
+                    Vendors can list their clothing, manage physical stock,
+                    fulfil rental orders and monitor their rental performance.
+                    Customers can browse eligible listings, reserve available
+                    items, manage their rentals and review pieces they have
+                    completed renting.
+                </p>
+
+                <p>
+                    To make fashion discovery more personal, customers can
+                    complete a style-preference quiz. A Random Forest machine
+                    learning model uses their answers to predict a preferred
+                    style, while wishlist, browsing and completed-rental
+                    interactions help rank relevant products on the
+                    <em>For You</em> page.
+                </p>
+
+                <p class="mb-0">
+                    Platform administrators oversee vendors, marketplace
+                    activity, rental records, commissions and vendor payouts,
+                    helping to keep the marketplace organised and accountable.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-5" aria-labelledby="about-values-heading">
+        <div class="text-center mx-auto mb-5 about-section-intro">
+            <p class="about-eyebrow mb-2">
+                What we hope to achieve
+            </p>
+
+            <h2 class="about-section-title" id="about-values-heading">
+                A more flexible way to experience fashion
+            </h2>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-md-4">
+                <article class="card about-goal-card h-100">
+                    <div class="card-body p-4 p-xl-5">
+                        <span class="about-goal-card__icon" aria-hidden="true">
+                            <i class="bi bi-stars"></i>
+                        </span>
+
+                        <h3 class="h4 mt-4 mb-3">
+                            Explore your style
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Try different silhouettes, colours and aesthetics
+                            without committing to permanent ownership.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <article class="card about-goal-card h-100">
+                    <div class="card-body p-4 p-xl-5">
+                        <span class="about-goal-card__icon" aria-hidden="true">
+                            <i class="bi bi-calendar-check"></i>
+                        </span>
+
+                        <h3 class="h4 mt-4 mb-3">
+                            Rent with flexibility
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Choose clothing for events, experimentation or
+                            everyday wear and rent it only for the period you
+                            need.
+                        </p>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <article class="card about-goal-card h-100">
+                    <div class="card-body p-4 p-xl-5">
+                        <span class="about-goal-card__icon" aria-hidden="true">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </span>
+
+                        <h3 class="h4 mt-4 mb-3">
+                            Extend clothing use
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Help existing garments reach more people instead
+                            of remaining unused after only a few occasions.
+                        </p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="about-closing my-5">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <p class="about-closing__eyebrow mb-2">
+                    Thank you for visiting
+                </p>
+
+                <h2 class="h3 mb-3">
+                    We hope you enjoy exploring {{ shop_name }}.
+                </h2>
+
+                <p class="mb-0">
+                    We hope our online B2C rental marketplace demonstrates how
+                    technology can make fashion experimentation more
+                    accessible, flexible and engaging for both customers and
+                    clothing vendors.
+                </p>
+            </div>
+
+            <div class="col-lg-4 text-lg-end">
+                <a class="btn btn-light"
+                   href="{% url 'customer:catalogue' %}">
+                    Start exploring
+                    <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

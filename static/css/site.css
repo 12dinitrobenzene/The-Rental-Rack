@@ -771,3 +771,133 @@ body {
         flex: 1 1 100%;
     }
 }
+
+/* About page */
+
+.about-page {
+    --about-ink: #252520;
+    --about-muted: #6e6a60;
+    --about-border: #ded9cf;
+    --about-surface: #f5f2ea;
+
+    color: var(--about-ink);
+}
+
+.about-eyebrow,
+.about-closing__eyebrow {
+    color: #656b54;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.about-title {
+    max-width: 42rem;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.6rem, 6vw, 5rem);
+    font-weight: 400;
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+}
+
+.about-section-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    font-weight: 400;
+    line-height: 1.08;
+}
+
+.about-photo-frame {
+    padding: 1rem;
+    background: var(--about-surface);
+    border: 1px solid var(--about-border);
+}
+
+.about-photo {
+    display: block;
+    width: 100%;
+    max-height: 42rem;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    object-position: center;
+}
+
+.about-photo-caption {
+    padding-top: 0.85rem;
+    color: var(--about-muted);
+    font-size: 0.8rem;
+}
+
+.about-story-section {
+    border-top: 1px solid var(--about-border);
+    border-bottom: 1px solid var(--about-border);
+}
+
+.about-section-intro {
+    max-width: 46rem;
+}
+
+.about-goal-card {
+    overflow: hidden;
+    border: 1px solid #ded9cf;
+    border-radius: 1.25rem;
+    background: #fff;
+    box-shadow: 0 0.35rem 1.25rem rgba(37, 37, 32, 0.06);
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        border-color 160ms ease;
+}
+
+.about-goal-card:hover {
+    transform: translateY(-4px);
+    border-color: #a9ad9a;
+    box-shadow: 0 0.75rem 2rem rgba(37, 37, 32, 0.11);
+}
+
+.about-goal-card__icon {
+    display: grid;
+    width: 3.25rem;
+    height: 3.25rem;
+    place-items: center;
+    border-radius: 50%;
+    background: #eef0e8;
+    color: #4f5947;
+    font-size: 1.3rem;
+}
+
+.about-goal-card .card-body {
+    min-height: 17rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .about-goal-card {
+        transition: none;
+    }
+
+    .about-goal-card:hover {
+        transform: none;
+    }
+}
+
+.about-closing {
+    padding: clamp(2rem, 5vw, 4rem);
+    background: #283d32;
+    color: #fff;
+}
+
+.about-closing__eyebrow {
+    color: #c4d4c6;
+}
+
+.about-closing p:not(.about-closing__eyebrow) {
+    color: #e1e8e2;
+}
+
+@media (max-width: 991.98px) {
+    .about-photo {
+        max-height: 36rem;
+        object-position: center 35%;
+    }
+}
