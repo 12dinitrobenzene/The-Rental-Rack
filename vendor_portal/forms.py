@@ -2,6 +2,7 @@ from django import forms
 from django.utils import timezone
 
 from shop.models import (
+    Category,
     Product,
     ProductImage,
     ProductVariant,
@@ -12,6 +13,27 @@ from shop.models import (
 
 
 class ProductForm(forms.ModelForm):
+    category_mode = forms.ChoiceField(
+        choices=[
+            ("existing", "Choose an existing category"),
+            ("new", "Create a new category"),
+        ],
+        initial="existing",
+        required=False,
+        widget=forms.RadioSelect,
+    )
+    new_category = forms.CharField(
+        required=False,
+        max_length=100,
+        label="New category name",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "e.g. Formal wear",
+            }
+        ),
+    )
+
     class Meta:
         model = Product
         fields = [
@@ -42,6 +64,60 @@ class ProductForm(forms.ModelForm):
                 attrs={"class": "form-select"}
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].required = False
+        self.fields["category"].empty_label = "Select a category"
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        mode = cleaned_data.get("category_mode") or "existing"
+        category = cleaned_data.get("category")
+        new_category = " ".join(
+            cleaned_data.get("new_category", "").split()
+        )
+
+        cleaned_data["category_mode"] = mode
+        cleaned_data["new_category"] = new_category
+
+        if mode == "existing":
+            if category is None:
+                self.add_error(
+                    "category",
+                    "Select an existing category.",
+                )
+
+        elif mode == "new":
+            cleaned_data["category"] = None
+
+            if not new_category:
+                self.add_error(
+                    "new_category",
+                    "Enter a name for the new category.",
+                )
+            elif Category.objects.filter(
+                name__iexact=new_category
+            ).exists():
+                self.add_error(
+                    "new_category",
+                    (
+                        "That category already exists. "
+                        "Choose it from the existing categories."
+                    ),
+                )
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        if self.cleaned_data["category_mode"] == "new":
+            category, _ = Category.objects.get_or_create(
+                name=self.cleaned_data["new_category"]
+            )
+            self.instance.category = category
+
+        return super().save(commit=commit)
 
 
 class ProductVariantForm(forms.ModelForm):
