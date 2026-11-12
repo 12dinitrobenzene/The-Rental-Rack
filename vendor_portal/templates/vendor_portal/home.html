@@ -4,156 +4,77 @@
 
 {% block content %}
 <div class="workspace-dashboard">
-    <header class="workspace-dashboard__header d-flex flex-wrap justify-content-between align-items-end gap-4 mb-5">
+    <header class="workspace-dashboard__header d-flex flex-wrap justify-content-between align-items-center gap-4 mb-5">
         <div>
-            <p class="workspace-dashboard__eyebrow mb-2">
-                Vendor workspace
-            </p>
-
-            <h1 class="display-5 fw-semibold mb-2">
-                {{ vendor.name }} inventory
-            </h1>
-
-            <p class="text-muted mb-0">
-                Manage listings, fulfil rentals and monitor company performance.
-            </p>
+            <h1 class="display-5 fw-semibold mb-2">{{ vendor.name }} workspace</h1>
+            <p class="text-muted mb-0">Manage your products, rentals and team.</p>
         </div>
 
-        <div class="workspace-dashboard__actions d-flex flex-wrap gap-2">
-            <a class="btn btn-dark"
-               href="{% url 'vendor_portal:product_create' %}">
-                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
-                Add product
-            </a>
-
-            <a class="btn btn-outline-dark"
-               href="{% url 'vendor_portal:rental_order_list' %}">
-                <i class="bi bi-bag-check me-1" aria-hidden="true"></i>
-                Rental orders
-            </a>
-
-            <a class="btn btn-outline-dark"
-               href="{% url 'vendor_portal:analytics' %}">
-                <i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i>
-                Performance analytics
-            </a>
-
-            {% if employee.is_vendor_admin %}
-                <a class="btn btn-outline-dark"
-                   href="{% url 'accounts:vendor_team' %}">
-                    <i class="bi bi-people me-1" aria-hidden="true"></i>
-                    Manage team
-                </a>
-            {% endif %}
-        </div>
+        <a class="btn btn-dark px-4" href="{% url 'vendor_portal:product_create' %}">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+            Add product
+        </a>
     </header>
 
-    <section class="mb-5" aria-labelledby="operational-summary-heading">
-        <div class="mb-3">
-            <p class="workspace-dashboard__section-label mb-1">
-                Current state
-            </p>
-
-            <h2 class="h3 mb-0" id="operational-summary-heading">
-                Operational summary
-            </h2>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <article class="vendor-dashboard-card h-100">
+                <div class="vendor-dashboard-card__icon" aria-hidden="true">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <h2 class="h4 mt-4">Inventory</h2>
+                <p class="text-muted mb-4">
+                    {{ active_listings }} active product{{ active_listings|pluralize }} ·
+                    {{ total_physical_stock }} unit{{ total_physical_stock|pluralize }} in stock
+                </p>
+                <a class="btn btn-outline-dark mt-auto" href="{% url 'vendor_portal:product_list' %}">
+                    View inventory
+                </a>
+            </article>
         </div>
 
-        <div class="row g-3">
-            {% include "components/metric_card.html" with label="Active rentals" value=active_rentals tone="success" icon="bi-arrow-repeat" %}
-
-            {% if awaiting_fulfilment %}
-                {% include "components/metric_card.html" with label="Awaiting fulfilment" value=awaiting_fulfilment tone="warning" icon="bi-box-seam" %}
-            {% else %}
-                {% include "components/metric_card.html" with label="Awaiting fulfilment" value=awaiting_fulfilment tone="neutral" icon="bi-box-seam" %}
-            {% endif %}
-
-            {% if overdue_rentals %}
-                {% include "components/metric_card.html" with label="Overdue rentals" value=overdue_rentals tone="danger" icon="bi-exclamation-triangle" %}
-            {% else %}
-                {% include "components/metric_card.html" with label="Overdue rentals" value=overdue_rentals tone="neutral" icon="bi-exclamation-triangle" %}
-            {% endif %}
-
-            {% if awaiting_completion %}
-                {% include "components/metric_card.html" with label="Awaiting completion" value=awaiting_completion tone="warning" icon="bi-clipboard-check" %}
-            {% else %}
-                {% include "components/metric_card.html" with label="Awaiting completion" value=awaiting_completion tone="neutral" icon="bi-clipboard-check" %}
-            {% endif %}
-
-            {% include "components/metric_card.html" with label="Active listings" value=active_listings tone="success" icon="bi-tags" %}
-
-            {% include "components/metric_card.html" with label="Physical stock" value=total_physical_stock tone="neutral" icon="bi-boxes" %}
-        </div>
-    </section>
-
-    <section aria-labelledby="vendor-products-heading">
-        <div class="mb-3">
-            <p class="workspace-dashboard__section-label mb-1">
-                Catalogue
-            </p>
-
-            <h2 class="h3 mb-1" id="vendor-products-heading">
-                Inventory
-            </h2>
-
-            <p class="text-muted mb-0">
-                Review stock levels, listing status and product details.
-            </p>
+        <div class="col-md-6">
+            <article class="vendor-dashboard-card h-100">
+                <div class="vendor-dashboard-card__icon" aria-hidden="true">
+                    <i class="bi bi-bag-check"></i>
+                </div>
+                <h2 class="h4 mt-4">Rental orders</h2>
+                <p class="text-muted mb-4">
+                    {{ awaiting_fulfilment }} item{{ awaiting_fulfilment|pluralize }} awaiting fulfilment
+                </p>
+                <a class="btn btn-outline-dark mt-auto" href="{% url 'vendor_portal:rental_order_list' %}">
+                    View rental orders
+                </a>
+            </article>
         </div>
 
-        <div class="table-responsive workspace-table-wrapper">
-            <table class="table table-hover align-middle workspace-table mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th scope="col">Product</th>
-                    <th scope="col">Category</th>
-                    <th scope="col" class="text-end">Price</th>
-                    <th scope="col" class="text-end">Stock</th>
-                    <th scope="col">Status</th>
-                    <th scope="col"><span class="visually-hidden">Actions</span></th>
-                </tr>
-            </thead>
-            <tbody>
-        {% for product in products %}
-                <tr>
-                    <td>
-                        <a class="fw-semibold link-dark"
-                           href="{% url 'vendor_portal:product_detail' product.pk %}">
-                            {{ product.name }}
-                        </a>
-                        <div class="small text-muted">{{ product.brand }}</div>
-                    </td>
-                    <td>{{ product.category.name }}</td>
-                    <td class="text-end text-nowrap">
-                        SGD {{ product.daily_rate }}/day
-                    </td>
-                    <td class="text-end fw-semibold">
-                        {{ product.total_stock }}
-                    </td>
-                    <td><span class="badge text-bg-{{ product.status_style }}">{{ product.status_label }}</span></td>
-                    <td class="text-end text-nowrap">
-                        <a class="btn btn-sm btn-outline-dark"
-                           href="{% url 'vendor_portal:product_edit' product.pk %}">Edit</a>
-                        {% if not product.is_archived %}
-                            <form class="d-inline" method="post"
-                                  action="{% url 'vendor_portal:product_archive' product.pk %}">
-                                {% csrf_token %}
-                                <button class="btn btn-sm btn-outline-secondary" type="submit">Archive</button>
-                            </form>
-                        {% endif %}
-                    </td>
-                </tr>
-        {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-5">
-                        No products yet. Add your first listing to get started.
-                    </td>
-                </tr>
-        {% endfor %}
-            </tbody>
-            </table>
+        <div class="col-md-6">
+            <article class="vendor-dashboard-card h-100">
+                <div class="vendor-dashboard-card__icon" aria-hidden="true">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <h2 class="h4 mt-4">Performance</h2>
+                <p class="text-muted mb-4">Review rental activity, earnings and settlements.</p>
+                <a class="btn btn-outline-dark mt-auto" href="{% url 'vendor_portal:analytics' %}">
+                    View performance
+                </a>
+            </article>
         </div>
-    </section>
 
+        {% if employee.is_vendor_admin %}
+            <div class="col-md-6">
+                <article class="vendor-dashboard-card h-100">
+                    <div class="vendor-dashboard-card__icon" aria-hidden="true">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <h2 class="h4 mt-4">Team</h2>
+                    <p class="text-muted mb-4">Add employees and manage access to this workspace.</p>
+                    <a class="btn btn-outline-dark mt-auto" href="{% url 'accounts:vendor_team' %}">
+                        Manage team
+                    </a>
+                </article>
+            </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

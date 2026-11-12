@@ -324,36 +324,12 @@ def employee_home(request):
         or 0
     )
 
-    products = list(
-        Product.objects.filter(vendor=employee.vendor)
-        .select_related("category", "vendor")
-        .annotate(total_stock=Sum("variants__total_quantity"))
-        .order_by("-created_at", "-pk")
-    )
-
-    for product in products:
-        product.total_stock = product.total_stock or 0
-        product.status_label, product.status_style = inventory_status(product)
-
-    rental_items = (
-        RentalItem.objects.filter(order__vendor=employee.vendor)
-        .select_related(
-            "order",
-            "order__customer",
-            "variant",
-            "settlement",
-        )
-        .order_by("-order__created_at", "pk")
-    )
-
     return render(
         request,
         "vendor_portal/home.html",
         {
             "vendor": employee.vendor,
             "employee": employee,
-            "products": products,
-            "rental_items": rental_items,
             "rental_metrics": rental_metrics,
             "active_rentals": rental_metrics["active_rentals"],
             "awaiting_fulfilment": rental_metrics["awaiting_fulfilment"],
@@ -362,6 +338,27 @@ def employee_home(request):
             "active_listings": active_listings,
             "total_physical_stock": total_physical_stock,
         },
+    )
+
+
+@login_required(login_url="accounts:login")
+def employee_product_list(request):
+    employee = get_employee_for_user(request.user)
+    products = list(
+        Product.objects.filter(vendor=employee.vendor)
+        .select_related("category", "vendor")
+        .annotate(total_stock=Sum("variants__total_quantity"))
+        .order_by("is_archived", "-created_at", "-pk")
+    )
+
+    for product in products:
+        product.total_stock = product.total_stock or 0
+        product.status_label, product.status_style = inventory_status(product)
+
+    return render(
+        request,
+        "vendor_portal/product_list.html",
+        {"vendor": employee.vendor, "products": products},
     )
 
 
@@ -964,10 +961,17 @@ def employee_product_edit(request, product_id):
 def employee_product_archive(request, product_id):
     employee = get_employee_for_user(request.user)
     product = employee_product_or_404(employee, product_id)
-    product.is_archived = True
+    product.is_archived = request.POST.get("action") != "unarchive"
     product.save(update_fields=["is_archived"])
-    messages.success(request, f"{product.name} has been archived.")
-    return redirect("vendor_portal:home")
+    messages.success(
+        request,
+        (
+            f"{product.name} has been archived."
+            if product.is_archived
+            else f"{product.name} has been unarchived."
+        ),
+    )
+    return redirect("vendor_portal:product_list")
 
 
 @login_required(login_url="accounts:login")
