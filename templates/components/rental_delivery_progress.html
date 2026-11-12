@@ -1,0 +1,45 @@
+<div class="rental-delivery-progress" role="list" aria-label="Delivery progress">
+    {% for step in delivery_steps %}
+        <div class="rental-delivery-progress__step
+                    {% if step.is_complete %}rental-delivery-progress__step--complete{% endif %}
+                    {% if step.is_current %}rental-delivery-progress__step--current{% endif %}"
+             role="listitem"
+             {% if step.is_current %}aria-current="step"{% endif %}>
+            <span class="rental-delivery-progress__marker" aria-hidden="true">
+                {% if step.is_complete %}
+                    <i class="bi bi-check-lg"></i>
+                {% else %}
+                    {{ step.number }}
+                {% endif %}
+            </span>
+            <span class="rental-delivery-progress__label">{{ step.label }}</span>
+
+            <div class="rental-delivery-progress__control">
+                {% if step.action %}
+                    <form method="post" action="{{ action_url }}">
+                        {% csrf_token %}
+                        <button class="btn btn-dark w-100"
+                                type="submit"
+                                name="action"
+                                value="{{ step.action.action }}">
+                            {{ step.action.label }}
+                        </button>
+                    </form>
+                {% elif step.is_complete %}
+                    <span class="rental-delivery-progress__state rental-delivery-progress__state--complete">
+                        <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
+                        Done
+                    </span>
+                {% else %}
+                    <span class="rental-delivery-progress__state" aria-disabled="true">
+                        Locked
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if not forloop.last %}
+            <span class="rental-delivery-progress__connector" aria-hidden="true"></span>
+        {% endif %}
+    {% endfor %}
+</div>

@@ -58,19 +58,34 @@
     </dl>
 </section>
 
-{% if fulfilment_actions %}
+{% if delivery_steps %}
     <section class="border rounded p-4 mt-4"
-             aria-labelledby="fulfilment-actions-heading">
-        <h2 class="h4" id="fulfilment-actions-heading">
-            Fulfilment actions
+             aria-labelledby="delivery-progress-heading">
+        <h2 class="h4 mb-4" id="delivery-progress-heading">
+            Delivery progress
+        </h2>
+        {% url 'vendor_portal:rental_transition' rental_item.pk as transition_url %}
+        {% include "components/rental_delivery_progress.html" with delivery_steps=delivery_steps action_url=transition_url %}
+    </section>
+{% endif %}
+
+{% if return_progress %}
+    {% include "vendor_portal/components/return_progress.html" %}
+{% endif %}
+
+{% if rental_monitoring_actions %}
+    <section class="border rounded p-4 mt-4"
+             aria-labelledby="rental-monitoring-heading">
+        <h2 class="h4" id="rental-monitoring-heading">
+            Rental monitoring
         </h2>
 
         <div class="d-flex flex-wrap gap-2">
-            {% for entry in fulfilment_actions %}
+            {% for entry in rental_monitoring_actions %}
                 <form method="post"
                       action="{% url 'vendor_portal:rental_transition' rental_item.pk %}">
                     {% csrf_token %}
-                    <button class="btn btn-dark"
+                    <button class="btn btn-outline-danger"
                             type="submit"
                             name="action"
                             value="{{ entry.action }}">
@@ -82,42 +97,11 @@
     </section>
 {% endif %}
 
-{% if rental_item.order.payment_status == "Paid" %}
-    {% if rental_item.status == "Active" or rental_item.status == "Overdue" %}
-        <a class="btn btn-outline-dark mt-4"
-           href="{% url 'vendor_portal:rental_return' rental_item.pk %}">
-            Record return
-        </a>
-    {% endif %}
-{% endif %}
-
-{% if rental_item.order.payment_status == "Paid" and rental_item.status == "Returned" and rental_item.rental_return %}
-    <a class="btn btn-outline-dark mt-4"
-       href="{% url 'vendor_portal:return_inspection' rental_item.pk %}">
-        Inspect / update inspection
-    </a>
-{% endif %}
-
 {% if rental_item.settlement %}
     {% include "vendor_portal/components/settlement_summary.html" with settlement=rental_item.settlement only %}
-{% elif can_complete_and_settle %}
-    <section class="border rounded p-4 mt-4" aria-labelledby="complete-heading">
-        <h2 class="h4" id="complete-heading">Complete rental</h2>
-        <p class="text-muted">
-            Completion records the simulated 20% platform commission and 80% vendor payout.
-        </p>
-        <form method="post" action="{% url 'vendor_portal:rental_complete' rental_item.pk %}">
-            {% csrf_token %}
-            <button class="btn btn-dark" type="submit">Complete and record settlement</button>
-        </form>
-    </section>
 {% elif rental_item.status == "Cancelled" %}
     <p class="alert alert-secondary mt-4 mb-0">
         Cancelled rental items do not produce a settlement.
-    </p>
-{% else %}
-    <p class="alert alert-light border mt-4 mb-0">
-        Settlement remains pending until the rental is returned and has an eligible inspection.
     </p>
 {% endif %}
 {% endblock %}

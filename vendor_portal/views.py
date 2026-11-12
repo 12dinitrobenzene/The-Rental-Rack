@@ -38,20 +38,46 @@ from .forms import (
 FULFILMENT_ACTIONS = {
     "prepare": (
         RentalItem.Status.PREPARING,
-        "Start preparing",
+        "Mark as preparing",
     ),
     "dispatch": (
         RentalItem.Status.DISPATCHED,
-        "Mark dispatched",
+        "Mark as out for delivery",
     ),
     "activate": (
         RentalItem.Status.ACTIVE,
-        "Mark active",
+        "Mark as delivered",
     ),
     "mark_overdue": (
         RentalItem.Status.OVERDUE,
         "Mark overdue",
     ),
+}
+
+DELIVERY_STEPS = (
+    (RentalItem.Status.CONFIRMED, "Confirmed"),
+    (RentalItem.Status.PREPARING, "Preparing"),
+    (RentalItem.Status.DISPATCHED, "Out for delivery"),
+    (RentalItem.Status.ACTIVE, "Delivered"),
+)
+
+DELIVERY_STEP_ACTIONS = {
+    RentalItem.Status.PREPARING: "prepare",
+    RentalItem.Status.DISPATCHED: "dispatch",
+    RentalItem.Status.ACTIVE: "activate",
+}
+
+POST_DELIVERY_STATUSES = {
+    RentalItem.Status.OVERDUE,
+    RentalItem.Status.RETURNED,
+    RentalItem.Status.COMPLETED,
+}
+
+RETURN_PROGRESS_STATUSES = {
+    RentalItem.Status.ACTIVE,
+    RentalItem.Status.OVERDUE,
+    RentalItem.Status.RETURNED,
+    RentalItem.Status.COMPLETED,
 }
 
 
@@ -77,6 +103,109 @@ def available_fulfilment_actions(rental_item):
         })
 
     return actions
+
+
+def delivery_progress_steps(rental_item, fulfilment_actions):
+    if rental_item.status == RentalItem.Status.CANCELLED:
+        return []
+
+    status_order = [status for status, _ in DELIVERY_STEPS]
+
+    if rental_item.status in POST_DELIVERY_STATUSES:
+        current_index = len(DELIVERY_STEPS)
+    else:
+        try:
+            current_index = status_order.index(rental_item.status)
+        except ValueError:
+            return []
+
+    available_actions = {
+        entry["action"]: entry
+        for entry in fulfilment_actions
+    }
+    steps = []
+
+    for index, (status, label) in enumerate(DELIVERY_STEPS):
+        action_name = DELIVERY_STEP_ACTIONS.get(status)
+        action = available_actions.get(action_name)
+        steps.append({
+            "number": index + 1,
+            "label": label,
+            "is_complete": index <= current_index,
+            "is_current": action is not None,
+            "action": action,
+        })
+
+    return steps
+
+
+def return_progress(rental_item, can_complete_and_settle):
+    if rental_item.status not in RETURN_PROGRESS_STATUSES:
+        return None
+
+    rental_return = getattr(rental_item, "rental_return", None)
+    inspection = (
+        getattr(rental_return, "inspection", None)
+        if rental_return
+        else None
+    )
+
+    outcome_label = "Outcome"
+    outcome_action = None
+    outcome_state = None
+
+    if inspection:
+        if inspection.condition == ReturnInspection.Condition.READY:
+            outcome_label = "Ready for reuse"
+            if can_complete_and_settle:
+                outcome_action = "complete_ready"
+        elif inspection.condition == ReturnInspection.Condition.WRITTEN_OFF:
+            outcome_label = "Written off"
+            if can_complete_and_settle:
+                outcome_action = "complete_writeoff"
+        elif inspection.condition == ReturnInspection.Condition.CLEANING:
+            outcome_label = "Cleaning required"
+            outcome_state = "On hold"
+        else:
+            outcome_label = "Decision required"
+            outcome_state = "On hold"
+
+    is_completed = rental_item.status == RentalItem.Status.COMPLETED
+
+    return {
+        "is_overdue": rental_item.status == RentalItem.Status.OVERDUE,
+        "expected_return_date": rental_item.rental_end_date,
+        "inspection_condition": (
+            inspection.get_condition_display()
+            if inspection
+            else None
+        ),
+        "steps": [
+            {
+                "label": "Returned",
+                "is_complete": rental_return is not None,
+                "is_current": rental_return is None,
+                "action": "record_return" if rental_return is None else None,
+            },
+            {
+                "label": "Inspected",
+                "is_complete": inspection is not None,
+                "is_current": rental_return is not None and inspection is None,
+                "action": (
+                    "update_inspection"
+                    if inspection and not is_completed
+                    else "inspect" if rental_return and not inspection else None
+                ),
+            },
+            {
+                "label": outcome_label,
+                "is_complete": is_completed,
+                "is_current": inspection is not None and not is_completed,
+                "action": None if is_completed else outcome_action,
+                "state_label": outcome_state,
+            },
+        ],
+    }
 
 
 def inventory_status(product):
@@ -360,6 +489,8 @@ def employee_rental_detail(request, item_id):
         and not hasattr(rental_item, "settlement")
     )
 
+    fulfilment_actions = available_fulfilment_actions(rental_item)
+
     return render(
         request,
         "vendor_portal/rental_detail.html",
@@ -367,7 +498,19 @@ def employee_rental_detail(request, item_id):
             "vendor": employee.vendor,
             "rental_item": rental_item,
             "can_complete_and_settle": can_complete_and_settle,
-            "fulfilment_actions": available_fulfilment_actions(rental_item),
+            "delivery_steps": delivery_progress_steps(
+                rental_item,
+                fulfilment_actions,
+            ),
+            "return_progress": return_progress(
+                rental_item,
+                can_complete_and_settle,
+            ),
+            "rental_monitoring_actions": [
+                entry
+                for entry in fulfilment_actions
+                if entry["action"] == "mark_overdue"
+            ],
         },
     )
 
@@ -764,11 +907,18 @@ def employee_product_create(request):
     if request.method == "POST" and form.is_valid():
         product = form.save(commit=False)
         product.vendor = employee.vendor
+        product.brand = employee.vendor.name
         # A newly created listing is eligible to be published by its employee.
         product.is_active = True
+        product.is_published = request.POST.get("action") == "publish"
         product.save()
         form.save_m2m()
-        messages.success(request, "Product created.")
+        messages.success(
+            request,
+            "Product created and published."
+            if product.is_published
+            else "Product saved as a draft.",
+        )
         return redirect("vendor_portal:home")
 
     return render(
@@ -785,7 +935,15 @@ def employee_product_edit(request, product_id):
     form = ProductForm(request.POST or None, instance=product)
 
     if request.method == "POST" and form.is_valid():
-        form.save()
+        product = form.save(commit=False)
+        product.brand = employee.vendor.name
+        action = request.POST.get("action")
+        if action == "publish":
+            product.is_published = True
+        elif action == "unpublish":
+            product.is_published = False
+        product.save()
+        form.save_m2m()
         messages.success(request, "Product updated.")
         return redirect("vendor_portal:home")
 
