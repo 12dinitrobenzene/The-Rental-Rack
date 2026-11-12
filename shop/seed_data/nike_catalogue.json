@@ -1,0 +1,544 @@
+{
+  "vendor": {
+    "name": "nike",
+    "contact_email": "nike@gmail.com",
+    "contact_phone": "",
+    "address": "kekek",
+    "approval_status": "Approved",
+    "is_suspended": 0
+  },
+  "employee_is_vendor_admin": false,
+  "products": [
+    {
+      "source_id": 5,
+      "fields": {
+        "name": "f4f4ff4f4ff",
+        "description": "4f4fff4f4f4f",
+        "brand": "4f4ff",
+        "daily_rate": "20",
+        "is_archived": 1,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 0
+      },
+      "category": "shirt",
+      "style_tags": [],
+      "variants": [
+        {
+          "sku": "4.",
+          "size": "L",
+          "colour": "grey",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 2,
+          "is_active": 1
+        }
+      ],
+      "images": []
+    },
+    {
+      "source_id": 6,
+      "fields": {
+        "name": "air jordan",
+        "description": "dededededededede",
+        "brand": "heeheeheehaw",
+        "daily_rate": "30",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "sweater",
+      "style_tags": [
+        {
+          "slug": "romantic_expressive",
+          "display_name": "Romantic Expressive"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "10",
+          "size": "45",
+          "colour": "red",
+          "colour_hex": "#FF0000",
+          "total_quantity": 10,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-09_at_5.32.30PM.png",
+          "asset": "images/5.png",
+          "alt_text": "red air jordans",
+          "sort_order": 0
+        }
+      ]
+    },
+    {
+      "source_id": 8,
+      "fields": {
+        "name": "retro nike outfit",
+        "description": "this is a nice sweater",
+        "brand": "nike",
+        "daily_rate": "20",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "classic_polished",
+          "display_name": "Classic Polished"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "3.",
+          "size": "L",
+          "colour": "red",
+          "colour_hex": "#FF0000",
+          "total_quantity": 10,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-09_at_5.35.03PM.png",
+          "asset": "images/6.png",
+          "alt_text": "this is sick",
+          "sort_order": 1
+        }
+      ]
+    },
+    {
+      "source_id": 9,
+      "fields": {
+        "name": "nike avant_garde",
+        "description": "this is very avant garde",
+        "brand": "nike",
+        "daily_rate": "30",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "avant_garde_statement",
+          "display_name": "Avant-Garde Statement"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "12.",
+          "size": "XL",
+          "colour": "red",
+          "colour_hex": "#FF0000",
+          "total_quantity": 2,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-09_at_5.37.16PM.png",
+          "asset": "images/7.png",
+          "alt_text": "this is very avant garde",
+          "sort_order": 1
+        }
+      ]
+    },
+    {
+      "source_id": 10,
+      "fields": {
+        "name": "nike minimalist clean",
+        "description": "this is very minimalist sia",
+        "brand": "nike",
+        "daily_rate": "30",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "minimalist_clean",
+          "display_name": "Minimalist Clean"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "20.",
+          "size": "M",
+          "colour": "red",
+          "colour_hex": "#FF0000",
+          "total_quantity": 3,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-09_at_5.38.47PM.png",
+          "asset": "images/8.png",
+          "alt_text": "nice",
+          "sort_order": 0
+        }
+      ]
+    },
+    {
+      "source_id": 11,
+      "fields": {
+        "name": "nike urban streetwear",
+        "description": "very streetwearish bro",
+        "brand": "nike",
+        "daily_rate": "30",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "urban_streetwear",
+          "display_name": "Urban Streetwear"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "13",
+          "size": "L",
+          "colour": "red",
+          "colour_hex": "#FF0000",
+          "total_quantity": 10,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-09_at_5.40.10PM.png",
+          "asset": "images/9.png",
+          "alt_text": "this is very streetwearish bro",
+          "sort_order": 2
+        }
+      ]
+    },
+    {
+      "source_id": 12,
+      "fields": {
+        "name": "baggy jeans combo",
+        "description": "super slick",
+        "brand": "nike",
+        "daily_rate": "20",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "minimalist_clean",
+          "display_name": "Minimalist Clean"
+        },
+        {
+          "slug": "urban_streetwear",
+          "display_name": "Urban Streetwear"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "15",
+          "size": "L",
+          "colour": "black",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 3,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-12_at_3.10.49PM.png",
+          "asset": "images/baggy-jeans-combo.png",
+          "alt_text": "sick",
+          "sort_order": 0
+        }
+      ]
+    },
+    {
+      "source_id": 13,
+      "fields": {
+        "name": "hella baggy style",
+        "description": "sick jorts and shirt",
+        "brand": "nike",
+        "daily_rate": "25",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "classic_polished",
+          "display_name": "Classic Polished"
+        },
+        {
+          "slug": "minimalist_clean",
+          "display_name": "Minimalist Clean"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "48",
+          "size": "M",
+          "colour": "grey",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 3,
+          "is_active": 1
+        },
+        {
+          "sku": "59",
+          "size": "XL",
+          "colour": "blue",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 3,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-12_at_3.12.51PM.png",
+          "asset": "images/hella-baggy-style.png",
+          "alt_text": "",
+          "sort_order": 0
+        }
+      ]
+    },
+    {
+      "source_id": 14,
+      "fields": {
+        "name": "relaxed nike combo",
+        "description": "very relaxed fit",
+        "brand": "nike",
+        "daily_rate": "34",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "classic_polished",
+          "display_name": "Classic Polished"
+        },
+        {
+          "slug": "urban_streetwear",
+          "display_name": "Urban Streetwear"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "49",
+          "size": "S",
+          "colour": "grey",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 4,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-12_at_3.14.11PM.png",
+          "asset": "images/relaxed-nike-combo.png",
+          "alt_text": "",
+          "sort_order": 0
+        }
+      ]
+    },
+    {
+      "source_id": 15,
+      "fields": {
+        "name": "nike experimental style",
+        "description": "a classic experimental style",
+        "brand": "nike",
+        "daily_rate": "30",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "avant_garde_statement",
+          "display_name": "Avant-Garde Statement"
+        },
+        {
+          "slug": "minimalist_clean",
+          "display_name": "Minimalist Clean"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "40.",
+          "size": "L",
+          "colour": "grey",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 4,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-12_at_3.17.54PM.png",
+          "asset": "images/nike-experimental-style.png",
+          "alt_text": "",
+          "sort_order": 0
+        }
+      ]
+    },
+    {
+      "source_id": 16,
+      "fields": {
+        "name": "nike classic style",
+        "description": "classical style from nike latest show",
+        "brand": "nike",
+        "daily_rate": "20",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "shirt",
+      "style_tags": [
+        {
+          "slug": "classic_polished",
+          "display_name": "Classic Polished"
+        },
+        {
+          "slug": "minimalist_clean",
+          "display_name": "Minimalist Clean"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "50",
+          "size": "L",
+          "colour": "Blue",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 3,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-12_at_3.19.33PM.png",
+          "asset": "images/nike-classic-style.png",
+          "alt_text": "",
+          "sort_order": 0
+        }
+      ]
+    },
+    {
+      "source_id": 17,
+      "fields": {
+        "name": "nike formal dress down",
+        "description": "experimental formal wear dress down",
+        "brand": "nike",
+        "daily_rate": "30",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "formal wear",
+      "style_tags": [
+        {
+          "slug": "avant_garde_statement",
+          "display_name": "Avant-Garde Statement"
+        },
+        {
+          "slug": "classic_polished",
+          "display_name": "Classic Polished"
+        },
+        {
+          "slug": "minimalist_clean",
+          "display_name": "Minimalist Clean"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "58",
+          "size": "L",
+          "colour": "grey",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 3,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-12_at_3.36.34PM.png",
+          "asset": "images/15.png",
+          "alt_text": "",
+          "sort_order": 0
+        }
+      ]
+    },
+    {
+      "source_id": 18,
+      "fields": {
+        "name": "nike windrunner men pants",
+        "description": "nike pants",
+        "brand": "nike",
+        "daily_rate": "20",
+        "is_archived": 0,
+        "moderation_blocked": 0,
+        "moderation_reason": "",
+        "is_active": 1,
+        "is_published": 1
+      },
+      "category": "pants",
+      "style_tags": [
+        {
+          "slug": "classic_polished",
+          "display_name": "Classic Polished"
+        }
+      ],
+      "variants": [
+        {
+          "sku": "VAR-3E319DABEBF31669",
+          "size": "L",
+          "colour": "grey",
+          "colour_hex": "#A0A0A0",
+          "total_quantity": 2,
+          "is_active": 1
+        }
+      ],
+      "images": [
+        {
+          "original_path": "products/2026/11/Screenshot_2026-11-12_at_3.57.26PM.png",
+          "asset": "images/16.png",
+          "alt_text": "",
+          "sort_order": 0
+        }
+      ]
+    }
+  ]
+}
