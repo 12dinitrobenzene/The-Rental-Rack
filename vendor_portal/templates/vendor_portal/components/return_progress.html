@@ -1,0 +1,91 @@
+<section class="border rounded p-4 mt-4"
+         aria-labelledby="return-progress-heading">
+    <h2 class="h4 mb-2" id="return-progress-heading">Return progress</h2>
+
+    {% if return_progress.is_overdue %}
+        <p class="alert alert-danger py-2 mb-4">
+            This item is overdue. It was expected by
+            {{ return_progress.expected_return_date|date:"d M Y" }}.
+        </p>
+    {% else %}
+        <p class="text-muted mb-4">
+            Expected return: {{ return_progress.expected_return_date|date:"d M Y" }}
+        </p>
+    {% endif %}
+
+    {% if return_progress.inspection_condition %}
+        <p class="mb-3">
+            Recorded condition:
+            <strong>{{ return_progress.inspection_condition }}</strong>
+        </p>
+    {% endif %}
+
+    <div class="rental-delivery-progress" role="list" aria-label="Return progress">
+        {% for step in return_progress.steps %}
+            <div class="rental-delivery-progress__step
+                        {% if step.is_complete %}rental-delivery-progress__step--complete{% endif %}
+                        {% if step.is_current %}rental-delivery-progress__step--current{% endif %}"
+                 role="listitem"
+                 {% if step.is_current %}aria-current="step"{% endif %}>
+                <span class="rental-delivery-progress__marker" aria-hidden="true">
+                    {% if step.is_complete %}
+                        <i class="bi bi-check-lg"></i>
+                    {% else %}
+                        {{ forloop.counter }}
+                    {% endif %}
+                </span>
+
+                <span class="rental-delivery-progress__label">{{ step.label }}</span>
+
+                <div class="rental-delivery-progress__control">
+                    {% if step.action == "record_return" %}
+                        <a class="btn btn-dark w-100"
+                           href="{% url 'vendor_portal:rental_return' rental_item.pk %}">
+                            Record return
+                        </a>
+                    {% elif step.action == "inspect" %}
+                        <a class="btn btn-dark w-100"
+                           href="{% url 'vendor_portal:return_inspection' rental_item.pk %}">
+                            Inspect return
+                        </a>
+                    {% elif step.action == "update_inspection" %}
+                        <a class="btn btn-dark w-100"
+                           href="{% url 'vendor_portal:return_inspection' rental_item.pk %}">
+                            Update inspection
+                        </a>
+                    {% elif step.action == "complete_ready" or step.action == "complete_writeoff" %}
+                        <form method="post"
+                              action="{% url 'vendor_portal:rental_complete' rental_item.pk %}"
+                              onsubmit="return confirm('{% if step.action == "complete_ready" %}Complete this rental as Ready for reuse? This will release the item and create the settlement.{% else %}Complete this rental as Written off? This will reduce physical stock and create the settlement.{% endif %}');">
+                            {% csrf_token %}
+                            <button class="btn btn-dark w-100" type="submit">
+                                {% if step.action == "complete_ready" %}
+                                    Complete and release item
+                                {% else %}
+                                    Complete write-off
+                                {% endif %}
+                            </button>
+                        </form>
+                    {% elif step.state_label %}
+                        <span class="rental-delivery-progress__state">
+                            {{ step.state_label }}
+                        </span>
+                    {% elif step.is_complete %}
+                        <span class="rental-delivery-progress__state rental-delivery-progress__state--complete">
+                            <i class="bi bi-check-lg me-1" aria-hidden="true"></i>
+                            Done
+                        </span>
+                    {% else %}
+                        <span class="rental-delivery-progress__state" aria-disabled="true">
+                            Locked
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if not forloop.last %}
+                <span class="rental-delivery-progress__connector" aria-hidden="true"></span>
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>

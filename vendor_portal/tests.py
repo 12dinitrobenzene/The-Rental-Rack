@@ -189,6 +189,58 @@ class EmployeeHomeTests(TestCase):
         self.assertEqual(own_response.status_code, 200)
         self.assertEqual(other_response.status_code, 404)
 
+    def test_delivery_flow_shows_only_the_next_valid_action(self):
+        product = self.create_product(self.vendor, "Delivery flow product")
+        variant = self.create_variant(product, "delivery-flow-product-m")
+        order = self.create_order()
+        item = self.create_rental_item(
+            order,
+            variant,
+            RentalItem.Status.CONFIRMED,
+        )
+        detail_url = reverse(
+            "vendor_portal:rental_detail",
+            args=[item.pk],
+        )
+        transition_url = reverse(
+            "vendor_portal:rental_transition",
+            args=[item.pk],
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(detail_url)
+        self.assertContains(response, "Delivery progress")
+        self.assertContains(response, "Out for delivery")
+        self.assertContains(response, "Delivered")
+        self.assertContains(response, "Mark as preparing")
+        self.assertContains(response, "csrfmiddlewaretoken")
+        self.assertNotContains(response, "Mark as out for delivery")
+
+        self.client.post(transition_url, {"action": "prepare"})
+        item.refresh_from_db()
+        self.assertEqual(item.status, RentalItem.Status.PREPARING)
+
+        response = self.client.get(detail_url)
+        self.assertContains(response, "Mark as out for delivery")
+        self.assertNotContains(response, "Mark as delivered")
+
+        self.client.post(transition_url, {"action": "dispatch"})
+        item.refresh_from_db()
+        self.assertEqual(item.status, RentalItem.Status.DISPATCHED)
+        self.assertEqual(item.get_status_display(), "Out for delivery")
+
+        response = self.client.get(detail_url)
+        self.assertContains(response, "Mark as delivered")
+
+        self.client.post(transition_url, {"action": "activate"})
+        item.refresh_from_db()
+        self.assertEqual(item.status, RentalItem.Status.ACTIVE)
+        self.assertEqual(item.get_status_display(), "Delivered")
+
+        response = self.client.get(detail_url)
+        self.assertContains(response, "Return progress")
+        self.assertContains(response, "Record return")
+
     def test_inventory_shows_product_details_stock_and_status(self):
         product = self.create_product(
             self.vendor,
@@ -533,16 +585,16 @@ class EmployeeHomeTests(TestCase):
             {
                 "name": "New vendor product",
                 "category": self.category.pk,
-                "brand": "Vendor brand",
                 "description": "A newly listed product.",
                 "daily_rate": "15.00",
-                "is_published": "on",
+                "action": "publish",
             },
         )
 
         self.assertRedirects(response, reverse("vendor_portal:home"))
         product = Product.objects.get(name="New vendor product")
         self.assertEqual(product.vendor, self.vendor)
+        self.assertEqual(product.brand, self.vendor.name)
         self.assertTrue(product.is_active)
         self.assertTrue(product.is_published)
 
@@ -555,10 +607,9 @@ class EmployeeHomeTests(TestCase):
                 "name": "New category product",
                 "category_mode": "new",
                 "new_category": "  Formal   wear  ",
-                "brand": "Vendor brand",
                 "description": "A product in a new category.",
                 "daily_rate": "15.00",
-                "is_published": "on",
+                "action": "publish",
             },
         )
 
@@ -576,7 +627,6 @@ class EmployeeHomeTests(TestCase):
                 "name": "Duplicate category product",
                 "category_mode": "new",
                 "new_category": self.category.name.upper(),
-                "brand": "Vendor brand",
                 "description": "A product with a duplicate category.",
                 "daily_rate": "15.00",
             },
@@ -596,7 +646,6 @@ class EmployeeHomeTests(TestCase):
             {
                 "name": "Missing category name product",
                 "category_mode": "new",
-                "brand": "Vendor brand",
                 "description": "A product missing a category name.",
                 "daily_rate": "15.00",
             },
@@ -616,10 +665,8 @@ class EmployeeHomeTests(TestCase):
             {
                 "name",
                 "category",
-                "brand",
                 "description",
                 "daily_rate",
-                "is_published",
                 "style_tags",
             },
         )
@@ -633,7 +680,6 @@ class EmployeeHomeTests(TestCase):
             {
                 "name": "Tagged product",
                 "category": self.category.pk,
-                "brand": "Vendor brand",
                 "description": "A style-tagged product.",
                 "daily_rate": "15.00",
                 "style_tags": [style_tag.pk],
@@ -642,6 +688,8 @@ class EmployeeHomeTests(TestCase):
 
         self.assertRedirects(response, reverse("vendor_portal:home"))
         product = Product.objects.get(name="Tagged product")
+        self.assertEqual(product.brand, self.vendor.name)
+        self.assertFalse(product.is_published)
         self.assertEqual(list(product.style_tags.all()), [style_tag])
 
     def test_shared_style_tags_are_seeded(self):
@@ -666,9 +714,9 @@ class EmployeeHomeTests(TestCase):
             {
                 "name": "Updated name",
                 "category": self.category.pk,
-                "brand": own_product.brand,
                 "description": own_product.description,
                 "daily_rate": "20.00",
+                "action": "publish",
             },
         )
         other_response = self.client.get(
@@ -678,6 +726,8 @@ class EmployeeHomeTests(TestCase):
         self.assertRedirects(response, reverse("vendor_portal:home"))
         own_product.refresh_from_db()
         self.assertEqual(own_product.name, "Updated name")
+        self.assertEqual(own_product.brand, self.vendor.name)
+        self.assertTrue(own_product.is_published)
         self.assertEqual(other_response.status_code, 404)
 
     def test_employee_can_archive_only_their_own_product(self):
@@ -1180,7 +1230,11 @@ class RentalSettlementWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Settlement Jacket")
         self.assertContains(response, "Ready for reuse")
-        self.assertContains(response, "Complete and record settlement")
+        self.assertContains(response, "Return progress")
+        self.assertContains(response, "Recorded condition")
+        self.assertContains(response, "Update inspection")
+        self.assertContains(response, "Complete and release item")
+        self.assertContains(response, "onsubmit=")
         self.assertContains(
             response,
             reverse(
@@ -1233,7 +1287,7 @@ class RentalSettlementWorkflowTests(TestCase):
             "SGD 80.00",
         ):
             self.assertContains(response, text)
-        self.assertNotContains(response, "Complete and record settlement")
+        self.assertNotContains(response, "Complete and release item")
 
     def test_cancelled_item_produces_no_settlement(self):
         self.item.status = RentalItem.Status.CANCELLED

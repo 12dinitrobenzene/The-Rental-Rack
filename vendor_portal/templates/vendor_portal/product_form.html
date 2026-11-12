@@ -72,11 +72,6 @@
             </fieldset>
 
             <div class="mb-3">
-                <label class="form-label" for="{{ form.brand.id_for_label }}">{{ form.brand.label }}</label>
-                {{ form.brand }}
-                <div class="text-danger small">{{ form.brand.errors }}</div>
-            </div>
-            <div class="mb-3">
                 <label class="form-label" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
                 {{ form.description }}
                 <div class="text-danger small">{{ form.description.errors }}</div>
@@ -91,13 +86,30 @@
                 {{ form.style_tags }}
                 <div class="text-danger small">{{ form.style_tags.errors }}</div>
             </div>
-            <div class="form-check mb-4">
-                {{ form.is_published }}
-                <label class="form-check-label" for="{{ form.is_published.id_for_label }}">{{ form.is_published.label }}</label>
-                <div class="text-danger small">{{ form.is_published.errors }}</div>
-            </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-dark" type="submit">Save product</button>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-dark"
+                        type="submit"
+                        name="action"
+                        value="save">
+                    {% if product %}Save changes{% else %}Save product{% endif %}
+                </button>
+
+                {% if product and product.is_published %}
+                    <button class="btn btn-dark"
+                            type="submit"
+                            name="action"
+                            value="unpublish">
+                        Unpublish listing
+                    </button>
+                {% else %}
+                    <button class="btn btn-dark"
+                            type="submit"
+                            name="action"
+                            value="publish">
+                        Publish this listing
+                    </button>
+                {% endif %}
+
                 <a class="btn btn-outline-secondary" href="{% url 'vendor_portal:home' %}">Cancel</a>
             </div>
         </form>

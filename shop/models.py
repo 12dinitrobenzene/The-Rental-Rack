@@ -241,8 +241,8 @@ class RentalItem(models.Model):
     class Status(models.TextChoices):
         CONFIRMED = "Confirmed", "Confirmed"
         PREPARING = "Preparing", "Preparing"
-        DISPATCHED = "Dispatched", "Dispatched"
-        ACTIVE = "Active", "Active"
+        DISPATCHED = "Dispatched", "Out for delivery"
+        ACTIVE = "Active", "Delivered"
         RETURNED = "Returned", "Returned"
         COMPLETED = "Completed", "Completed"
         CANCELLED = "Cancelled", "Cancelled"

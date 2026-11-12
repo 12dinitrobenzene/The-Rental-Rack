@@ -41,21 +41,17 @@ class ProductForm(forms.ModelForm):
         fields = [
             "name",
             "category",
-            "brand",
             "description",
             "daily_rate",
-            "is_published",
             "style_tags",
         ]
         labels = {
             "daily_rate": "Daily rental rate (SGD)",
-            "is_published": "Publish this listing",
             "style_tags": "Style tags",
         }
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "category": forms.Select(attrs={"class": "form-select"}),
-            "brand": forms.TextInput(attrs={"class": "form-control"}),
             "description": forms.Textarea(
                 attrs={"class": "form-control", "rows": 5}
             ),
