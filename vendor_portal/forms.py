@@ -1,3 +1,5 @@
+import secrets
+
 from django import forms
 from django.utils import timezone
 
@@ -120,11 +122,18 @@ class ProductForm(forms.ModelForm):
         return super().save(commit=commit)
 
 
+def generate_variant_sku():
+    while True:
+        sku = f"VAR-{secrets.token_hex(8).upper()}"
+
+        if not ProductVariant.objects.filter(sku=sku).exists():
+            return sku
+
+
 class ProductVariantForm(forms.ModelForm):
     class Meta:
         model = ProductVariant
         fields = [
-            "sku",
             "size",
             "colour",
             "colour_hex",
@@ -137,7 +146,6 @@ class ProductVariantForm(forms.ModelForm):
             "is_active": "Available for rental",
         }
         widgets = {
-            "sku": forms.TextInput(attrs={"class": "form-control"}),
             "size": forms.TextInput(attrs={"class": "form-control"}),
             "colour": forms.TextInput(attrs={"class": "form-control"}),
             "colour_hex": forms.TextInput(
@@ -147,6 +155,12 @@ class ProductVariantForm(forms.ModelForm):
                 attrs={"class": "form-control", "min": 0}
             ),
         }
+
+    def save(self, commit=True):
+        if not self.instance.sku:
+            self.instance.sku = generate_variant_sku()
+
+        return super().save(commit=commit)
 
 
 class ProductImageForm(forms.ModelForm):

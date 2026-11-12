@@ -15,11 +15,6 @@
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
             <div class="row g-3">
-                <div class="col-12">
-                    <label class="form-label" for="{{ form.sku.id_for_label }}">{{ form.sku.label }}</label>
-                    {{ form.sku }}
-                    {% for error in form.sku.errors %}<p class="text-danger small mb-0 mt-1">{{ error }}</p>{% endfor %}
-                </div>
                 <div class="col-md-6">
                     <label class="form-label" for="{{ form.size.id_for_label }}">{{ form.size.label }}</label>
                     {{ form.size }}

@@ -716,7 +716,6 @@ class EmployeeHomeTests(TestCase):
         create_response = self.client.post(
             reverse("vendor_portal:variant_create", args=[product.pk]),
             {
-                "sku": "variant-product-s-green",
                 "size": "S",
                 "colour": "Green",
                 "colour_hex": "#00AA00",
@@ -724,14 +723,14 @@ class EmployeeHomeTests(TestCase):
                 "is_active": "on",
             },
         )
-        variant = ProductVariant.objects.get(sku="variant-product-s-green")
+        variant = ProductVariant.objects.get(product=product)
+        original_sku = variant.sku
         edit_response = self.client.post(
             reverse(
                 "vendor_portal:variant_edit",
                 args=[product.pk, variant.pk],
             ),
             {
-                "sku": variant.sku,
                 "size": "S",
                 "colour": "Green",
                 "colour_hex": "#00AA00",
@@ -751,12 +750,15 @@ class EmployeeHomeTests(TestCase):
             reverse("vendor_portal:product_detail", args=[product.pk]),
         )
         self.assertEqual(variant.product, product)
+        self.assertRegex(variant.sku, r"^VAR-[0-9A-F]{16}$")
+        self.assertNotEqual(variant.sku, other_variant.sku)
         self.assertRedirects(
             edit_response,
             reverse("vendor_portal:product_detail", args=[product.pk]),
         )
         variant.refresh_from_db()
         self.assertEqual(variant.total_quantity, 5)
+        self.assertEqual(variant.sku, original_sku)
         self.assertEqual(other_response.status_code, 404)
 
     def test_employee_can_create_and_edit_only_their_own_product_image(self):
@@ -811,6 +813,7 @@ class EmployeeHomeTests(TestCase):
     def test_variant_and_image_forms_do_not_expose_a_product_field(self):
         self.assertNotIn("product", ProductVariantForm.Meta.fields)
         self.assertNotIn("product", ProductImageForm.Meta.fields)
+        self.assertNotIn("sku", ProductVariantForm.Meta.fields)
 
 
 class VendorAnalyticsTests(TestCase):
