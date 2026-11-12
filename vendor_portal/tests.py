@@ -160,7 +160,7 @@ class EmployeeHomeTests(TestCase):
         other_product = self.create_product(self.other_vendor, "Other vendor product")
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("vendor_portal:home"))
+        response = self.client.get(reverse("vendor_portal:product_list"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, own_product.name)
@@ -257,7 +257,7 @@ class EmployeeHomeTests(TestCase):
         )
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("vendor_portal:home"))
+        response = self.client.get(reverse("vendor_portal:product_list"))
 
         self.assertContains(response, "Category")
         self.assertContains(response, "Price")
@@ -380,13 +380,12 @@ class EmployeeHomeTests(TestCase):
         self.assertEqual(response.context["overdue_rentals"], 1)
         self.assertEqual(response.context["awaiting_completion"], 1)
         for label in (
-            "Operational summary",
-            "Active rentals",
-            "Awaiting fulfilment",
-            "Overdue rentals",
-            "Awaiting completion",
-            "Active listings",
-            "Physical stock",
+            "Inventory",
+            "Rental orders",
+            "Performance",
+            "View inventory",
+            "View rental orders",
+            "View performance",
         ):
             self.assertContains(response, label)
 
@@ -560,7 +559,7 @@ class EmployeeHomeTests(TestCase):
         draft_product = self.create_product(self.vendor, "Draft product")
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("vendor_portal:home"))
+        response = self.client.get(reverse("vendor_portal:product_list"))
 
         self.assertContains(response, active_product.name)
         self.assertContains(response, archived_product.name)
@@ -573,7 +572,9 @@ class EmployeeHomeTests(TestCase):
 
         self.vendor.is_suspended = True
         self.vendor.save(update_fields=["is_suspended"])
-        suspended_response = self.client.get(reverse("vendor_portal:home"))
+        suspended_response = self.client.get(
+            reverse("vendor_portal:product_list")
+        )
 
         self.assertContains(suspended_response, "Vendor Suspended", count=4)
 
@@ -746,7 +747,10 @@ class EmployeeHomeTests(TestCase):
         )
 
         self.assertEqual(get_response.status_code, 405)
-        self.assertRedirects(response, reverse("vendor_portal:home"))
+        self.assertRedirects(
+            response,
+            reverse("vendor_portal:product_list"),
+        )
         own_product.refresh_from_db()
         self.assertTrue(own_product.is_archived)
         self.assertEqual(other_response.status_code, 404)

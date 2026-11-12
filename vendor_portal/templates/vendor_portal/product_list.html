@@ -1,0 +1,74 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Inventory | {{ vendor.name }}{% endblock %}
+
+{% block content %}
+<div class="workspace-dashboard">
+    <a class="link-secondary" href="{% url 'vendor_portal:home' %}">Back to workspace</a>
+
+    <header class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-4 mb-4">
+        <div>
+            <h1 class="mb-2">Inventory</h1>
+            <p class="text-muted mb-0">Manage your products, listing status and stock.</p>
+        </div>
+        <a class="btn btn-dark" href="{% url 'vendor_portal:product_create' %}">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+            Add product
+        </a>
+    </header>
+
+    <div class="table-responsive workspace-table-wrapper">
+        <table class="table table-hover align-middle workspace-table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Category</th>
+                    <th scope="col" class="text-end">Price</th>
+                    <th scope="col" class="text-end">Stock</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>
+                            <span class="fw-semibold">{{ product.name }}</span>
+                            <div class="small text-muted">{{ product.brand }}</div>
+                        </td>
+                        <td>{{ product.category.name }}</td>
+                        <td class="text-end text-nowrap">SGD {{ product.daily_rate }}/day</td>
+                        <td class="text-end fw-semibold">{{ product.total_stock }}</td>
+                        <td>
+                            <span class="badge text-bg-{{ product.status_style }}">{{ product.status_label }}</span>
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-dark" href="{% url 'vendor_portal:product_detail' product.pk %}">
+                                Manage product
+                            </a>
+                            <form class="d-inline" method="post" action="{% url 'vendor_portal:product_archive' product.pk %}">
+                                {% csrf_token %}
+                                {% if product.is_archived %}
+                                    <button class="btn btn-sm btn-outline-dark" type="submit" name="action" value="unarchive">
+                                        Unarchive
+                                    </button>
+                                {% else %}
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit" name="action" value="archive">
+                                        Archive
+                                    </button>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            No products yet. Add your first listing to get started.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

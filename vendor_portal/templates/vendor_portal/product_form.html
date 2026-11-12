@@ -3,7 +3,7 @@
 {% block title %}{{ page_title }} | Vendor workspace{% endblock %}
 
 {% block content %}
-<a class="link-secondary" href="{% url 'vendor_portal:home' %}">Back to inventory</a>
+<a class="link-secondary" href="{% url 'vendor_portal:product_list' %}">Back to inventory</a>
 
 <div class="row mt-4">
     <div class="col-lg-8 col-xl-7">
@@ -110,7 +110,7 @@
                     </button>
                 {% endif %}
 
-                <a class="btn btn-outline-secondary" href="{% url 'vendor_portal:home' %}">Cancel</a>
+                <a class="btn btn-outline-secondary" href="{% url 'vendor_portal:product_list' %}">Cancel</a>
             </div>
         </form>
     </div>
