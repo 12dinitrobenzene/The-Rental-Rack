@@ -546,6 +546,70 @@ class EmployeeHomeTests(TestCase):
         self.assertTrue(product.is_active)
         self.assertTrue(product.is_published)
 
+    def test_employee_can_create_a_product_with_a_new_category(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vendor_portal:product_create"),
+            {
+                "name": "New category product",
+                "category_mode": "new",
+                "new_category": "  Formal   wear  ",
+                "brand": "Vendor brand",
+                "description": "A product in a new category.",
+                "daily_rate": "15.00",
+                "is_published": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("vendor_portal:home"))
+        category = Category.objects.get(name="Formal wear")
+        product = Product.objects.get(name="New category product")
+        self.assertEqual(product.category, category)
+
+    def test_employee_cannot_create_a_duplicate_category(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vendor_portal:product_create"),
+            {
+                "name": "Duplicate category product",
+                "category_mode": "new",
+                "new_category": self.category.name.upper(),
+                "brand": "Vendor brand",
+                "description": "A product with a duplicate category.",
+                "daily_rate": "15.00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "That category already exists.")
+        self.assertFalse(
+            Product.objects.filter(name="Duplicate category product").exists()
+        )
+
+    def test_new_category_mode_requires_a_name(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vendor_portal:product_create"),
+            {
+                "name": "Missing category name product",
+                "category_mode": "new",
+                "brand": "Vendor brand",
+                "description": "A product missing a category name.",
+                "daily_rate": "15.00",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Enter a name for the new category.")
+        self.assertFalse(
+            Product.objects.filter(
+                name="Missing category name product"
+            ).exists()
+        )
+
     def test_product_form_excludes_vendor_and_moderation_fields(self):
         self.assertEqual(
             set(ProductForm.Meta.fields),

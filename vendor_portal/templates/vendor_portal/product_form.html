@@ -20,17 +20,61 @@
                 {{ form.name }}
                 <div class="text-danger small">{{ form.name.errors }}</div>
             </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+            <fieldset class="mb-3">
+                <legend class="form-label">Category</legend>
+
+                <div class="d-flex flex-column flex-sm-row gap-3 mb-3">
+                    {% for choice in form.category_mode %}
+                        <div class="form-check">
+                            {{ choice.tag }}
+                            <label
+                                class="form-check-label"
+                                for="{{ choice.id_for_label }}"
+                            >
+                                {{ choice.choice_label }}
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div id="existing-category-fields">
+                    <label
+                        class="form-label"
+                        for="{{ form.category.id_for_label }}"
+                    >
+                        Existing category
+                    </label>
+
                     {{ form.category }}
-                    <div class="text-danger small">{{ form.category.errors }}</div>
+                    <div class="text-danger small">
+                        {{ form.category.errors }}
+                    </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label" for="{{ form.brand.id_for_label }}">{{ form.brand.label }}</label>
-                    {{ form.brand }}
-                    <div class="text-danger small">{{ form.brand.errors }}</div>
+
+                <div id="new-category-fields">
+                    <label
+                        class="form-label"
+                        for="{{ form.new_category.id_for_label }}"
+                    >
+                        {{ form.new_category.label }}
+                    </label>
+
+                    {{ form.new_category }}
+
+                    <div class="form-text">
+                        This category will also be available for future products.
+                    </div>
+
+                    <div class="text-danger small">
+                        {{ form.new_category.errors }}
+                    </div>
                 </div>
+            </fieldset>
+
+            <div class="mb-3">
+                <label class="form-label" for="{{ form.brand.id_for_label }}">{{ form.brand.label }}</label>
+                {{ form.brand }}
+                <div class="text-danger small">{{ form.brand.errors }}</div>
             </div>
             <div class="mb-3">
                 <label class="form-label" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
@@ -59,4 +103,51 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (() => {
+        const modeInputs = document.querySelectorAll(
+            'input[name="category_mode"]'
+        );
+
+        const existingFields = document.getElementById(
+            "existing-category-fields"
+        );
+
+        const newFields = document.getElementById(
+            "new-category-fields"
+        );
+
+        const categorySelect = document.getElementById(
+            "{{ form.category.id_for_label }}"
+        );
+
+        const newCategoryInput = document.getElementById(
+            "{{ form.new_category.id_for_label }}"
+        );
+
+        function updateCategoryFields() {
+            const selectedMode = document.querySelector(
+                'input[name="category_mode"]:checked'
+            );
+
+            const creatingNew =
+                selectedMode && selectedMode.value === "new";
+
+            existingFields.hidden = creatingNew;
+            newFields.hidden = !creatingNew;
+
+            categorySelect.disabled = creatingNew;
+            newCategoryInput.disabled = !creatingNew;
+        }
+
+        modeInputs.forEach((input) => {
+            input.addEventListener("change", updateCategoryFields);
+        });
+
+        updateCategoryFields();
+    })();
+</script>
 {% endblock %}
