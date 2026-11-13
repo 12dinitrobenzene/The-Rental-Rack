@@ -9,10 +9,6 @@
 
 <header class="mb-4">
     <h1>Listing moderation</h1>
-    <p class="text-muted">
-        Block non-compliant listings from the storefront. Blocking does not
-        change the vendor's own publish setting, and existing rentals are kept.
-    </p>
 </header>
 
 <form method="get" action="{% url 'staff_portal:listing_list' %}"
@@ -53,8 +49,7 @@
                     <td>{{ product.vendor.name }}</td>
                     <td>
                         {% if product.is_archived %}Archived
-                        {% elif product.is_published %}Published
-                        {% else %}Draft{% endif %}
+                        {% else %}Published{% endif %}
                     </td>
                     <td>
                         {% if product.moderation_blocked %}
@@ -64,22 +59,11 @@
                             <span class="badge text-bg-success">Allowed</span>
                         {% endif %}
                     </td>
-                    <td>
-                        <form method="post"
-                              action="{% url 'staff_portal:listing_moderate' product.pk %}"
-                              class="d-flex flex-wrap gap-2">
-                            {% csrf_token %}
-                            {% if product.moderation_blocked %}
-                                <button class="btn btn-sm btn-outline-success"
-                                        type="submit" name="action" value="unblock">Unblock</button>
-                            {% else %}
-                                <input type="text" name="reason" maxlength="500"
-                                       class="form-control form-control-sm"
-                                       placeholder="Reason (required)" required>
-                                <button class="btn btn-sm btn-outline-danger"
-                                        type="submit" name="action" value="block">Block</button>
-                            {% endif %}
-                        </form>
+                    <td class="moderation-actions">
+                        <a class="btn btn-sm btn-outline-dark w-100"
+                           href="{% url 'staff_portal:listing_moderate' product.pk %}">
+                            Review listing
+                        </a>
                     </td>
                 </tr>
             {% empty %}

@@ -302,7 +302,10 @@ def platform_listing_list(request):
     filter_form = ListingModerationFilterForm(request.GET)
 
     products = (
-        Product.objects.select_related("vendor", "category")
+        Product.objects.filter(
+            Q(is_published=True) | Q(is_archived=True),
+        )
+        .select_related("vendor", "category")
         .order_by("-moderation_blocked", "vendor__name", "name", "pk")
     )
 
@@ -332,32 +335,44 @@ def platform_listing_list(request):
 
 
 @login_required(login_url="accounts:login")
-@require_POST
 def platform_listing_moderate(request, product_id):
     require_platform_admin(request.user)
-    product = get_object_or_404(Product, pk=product_id)
-    form = ListingModerationForm(request.POST)
+    product = get_object_or_404(
+        Product.objects.select_related("vendor", "category").filter(
+            Q(is_published=True) | Q(is_archived=True),
+        ),
+        pk=product_id,
+    )
+    initial_action = (
+        "unblock" if product.moderation_blocked else "block"
+    )
+    form = ListingModerationForm(
+        request.POST or None,
+        initial={"action": initial_action},
+    )
 
-    if not form.is_valid():
-        first_error = next(
-            error
-            for errors in form.errors.values()
-            for error in errors
+    if request.method == "POST" and form.is_valid():
+        if form.cleaned_data["action"] == "block":
+            product.moderation_blocked = True
+            product.moderation_reason = form.cleaned_data["reason"]
+            message = f"{product.name} has been blocked."
+        else:
+            product.moderation_blocked = False
+            product.moderation_reason = ""
+            message = f"{product.name} has been unblocked."
+
+        product.save(
+            update_fields=[
+                "moderation_blocked",
+                "moderation_reason",
+                "updated_at",
+            ]
         )
-        messages.error(request, first_error)
+        messages.success(request, message)
         return redirect("staff_portal:listing_list")
 
-    if form.cleaned_data["action"] == "block":
-        product.moderation_blocked = True
-        product.moderation_reason = form.cleaned_data["reason"]
-        message = f"{product.name} has been blocked."
-    else:
-        product.moderation_blocked = False
-        product.moderation_reason = ""
-        message = f"{product.name} has been unblocked."
-
-    product.save(
-        update_fields=["moderation_blocked", "moderation_reason", "updated_at"]
+    return render(
+        request,
+        "staff_portal/listing_review.html",
+        {"form": form, "product": product},
     )
-    messages.success(request, message)
-    return redirect("staff_portal:listing_list")

@@ -882,6 +882,14 @@ class PlatformListingModerationTests(TestCase):
         )
 
     def test_listing_screen_includes_hidden_and_blocked_listings(self):
+        draft_product = Product.objects.create(
+            vendor=self.vendor,
+            category=self.category,
+            name="Unfinished Draft",
+            description="A draft that is not ready for moderation.",
+            brand="Test Brand",
+            daily_rate=Decimal("10.00"),
+        )
         self.product.moderation_blocked = True
         self.product.moderation_reason = "Existing reason"
         self.product.save(update_fields=["moderation_blocked", "moderation_reason"])
@@ -892,6 +900,7 @@ class PlatformListingModerationTests(TestCase):
         self.assertTemplateUsed(response, "staff_portal/listings.html")
         self.assertContains(response, self.product.name)
         self.assertContains(response, "Existing reason")
+        self.assertNotContains(response, draft_product.name)
         dashboard_response = self.client.get(reverse("staff_portal:home"))
         self.assertContains(dashboard_response, "Manage clothing listings")
 
@@ -903,6 +912,7 @@ class PlatformListingModerationTests(TestCase):
             description="A blocked listing.",
             brand="Searchable Brand",
             daily_rate=Decimal("10.00"),
+            is_published=True,
             moderation_blocked=True,
         )
 
@@ -939,18 +949,30 @@ class PlatformListingModerationTests(TestCase):
         self.assertEqual(self.product.moderation_reason, "")
         self.assertTrue(self.product.is_published)
 
-    def test_block_requires_a_reason_and_action_rejects_get(self):
+    def test_block_requires_a_reason_and_get_displays_review_page(self):
         response = self.client.post(
             self.action_url,
             {"action": "block", "reason": "   "},
         )
 
-        self.assertRedirects(response, self.list_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "staff_portal/listing_review.html",
+        )
+        self.assertContains(
+            response,
+            "Enter a reason before blocking a listing.",
+        )
         self.product.refresh_from_db()
         self.assertFalse(self.product.moderation_blocked)
 
         get_response = self.client.get(self.action_url)
-        self.assertEqual(get_response.status_code, 405)
+        self.assertEqual(get_response.status_code, 200)
+        self.assertTemplateUsed(
+            get_response,
+            "staff_portal/listing_review.html",
+        )
 
     def test_other_roles_cannot_moderate_listings(self):
         customer_group = Group.objects.get_or_create(
