@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
+from django.views.decorators.http import require_GET
 
 from accounts.permissions import require_customer
 from accounts.roles import CUSTOMER_GROUP, role_for_user
@@ -290,6 +291,7 @@ def vendor_info(request):
     )
 
 
+@require_GET
 def product_detail(request, product_id):
     product = get_object_or_404(
         visible_products(),
@@ -315,42 +317,38 @@ def product_detail(request, product_id):
                 last_viewed_at=timezone.now(),
             )
 
-    rental_form = RentalSelectionForm(
-        request.POST if request.method == "POST" else None,
-        product=product,
+    rental_form = RentalSelectionForm(product=product)
+
+    return _render_product_detail(request, product, rental_form)
+
+
+def _check_selection_availability(rental_form):
+    """Return True if the selection is available, else add a quantity error."""
+
+    data = rental_form.cleaned_data
+    variant = data["variant_id"]
+
+    availability = available_quantity_by_day(
+        variant=variant,
+        start_date=data["start_date"],
+        end_date=data["end_date"],
     )
+    available_quantity = min(availability.values())
 
-    rental_result = None
-
-    if request.method == "POST" and rental_form.is_valid():
-        data = rental_form.cleaned_data
-        variant = data["variant_id"]
-
-        availability = available_quantity_by_day(
-            variant=variant,
-            start_date=data["start_date"],
-            end_date=data["end_date"],
+    if data["quantity"] > available_quantity:
+        rental_form.add_error(
+            "quantity",
+            (
+                f"Only {available_quantity} unit(s) are available "
+                "for the entire selected period."
+            ),
         )
+        return False
 
-        available_quantity = min(availability.values())
+    return True
 
-        if data["quantity"] > available_quantity:
-            rental_form.add_error(
-                "quantity",
-                (
-                    f"Only {available_quantity} unit(s) are available "
-                    "for the entire selected period."
-                ),
-            )
-        else:
-            rental_result = {
-                "variant": variant,
-                "quantity": data["quantity"],
-                "rental_days": data["rental_days"],
-                "line_total": data["line_total"],
-                "available_quantity": available_quantity,
-            }
 
+def _render_product_detail(request, product, rental_form):
     related_products = (
         visible_products()
         .filter(category=product.category)
@@ -413,7 +411,6 @@ def product_detail(request, product_id):
             "available_colours": available_colours,
             "default_colour": default_colour,
             "rental_form": rental_form,
-            "rental_result": rental_result,
             "reviews": reviews,
             **review_summary,
         },
@@ -509,32 +506,13 @@ class AddToCartView(LoginRequiredMixin, View):
         form = RentalSelectionForm(request.POST, product=product)
 
         if not form.is_valid():
-            first_error = next(
-                error
-                for errors in form.errors.values()
-                for error in errors
-            )
-            messages.error(request, first_error)
-            return redirect("customer:product_detail", product_id=product.pk)
+            return _render_product_detail(request, product, form)
 
         selection = form.cleaned_data
         variant = selection["variant_id"]
-        availability = available_quantity_by_day(
-            variant=variant,
-            start_date=selection["start_date"],
-            end_date=selection["end_date"],
-        )
-        available_quantity = min(availability.values())
 
-        if selection["quantity"] > available_quantity:
-            messages.error(
-                request,
-                (
-                    f"Only {available_quantity} unit(s) are available "
-                    "for the entire selected period."
-                ),
-            )
-            return redirect("customer:product_detail", product_id=product.pk)
+        if not _check_selection_availability(form):
+            return _render_product_detail(request, product, form)
 
         cart = request.session.get(RENTAL_CART_SESSION_KEY, [])
 

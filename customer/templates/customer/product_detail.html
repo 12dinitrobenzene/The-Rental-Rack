@@ -106,6 +106,7 @@
 
             <form method="post"
                   action="{% url 'customer:cart_add' product.pk %}"
+                  id="rental-selection"
                   data-rental-form
                   novalidate>
 
@@ -235,29 +236,6 @@
                 Adding an item to your cart does not reserve stock.
                 Availability will be checked again at checkout.
             </p>
-
-            {% if rental_result %}
-                <div class="alert alert-success mt-3"
-                     role="status"
-                     data-rental-result>
-                    <p class="mb-1">
-                        {{ rental_result.quantity }} ×
-                        {{ rental_result.variant.size }} /
-                        {{ rental_result.variant.colour }}
-                        available for {{ rental_result.rental_days }} day(s).
-                    </p>
-
-                    <p class="mb-1">
-                        Estimated rental total:
-                        SGD {{ rental_result.line_total|floatformat:2 }}
-                    </p>
-
-                    <p class="small mb-0">
-                        This check does not reserve stock.
-                        Availability will be checked again at checkout.
-                    </p>
-                </div>
-            {% endif %}
 
             </form>
 

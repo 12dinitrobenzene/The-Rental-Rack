@@ -595,49 +595,6 @@ class PublicProductVisibilityTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-    def test_product_detail_post_returns_available_rental_result(self):
-        start = timezone.localdate()
-        response = self.client.post(
-            reverse("customer:product_detail", args=[self.product.pk]),
-            {
-                "variant_id": self.variant.pk,
-                "start_date": start.isoformat(),
-                "end_date": (start + timedelta(days=1)).isoformat(),
-                "quantity": "2",
-            },
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.context["rental_result"],
-            {
-                "variant": self.variant,
-                "quantity": 2,
-                "rental_days": 2,
-                "line_total": Decimal("48.00"),
-                "available_quantity": 2,
-            },
-        )
-
-    def test_product_detail_post_reports_insufficient_availability(self):
-        start = timezone.localdate()
-        response = self.client.post(
-            reverse("customer:product_detail", args=[self.product.pk]),
-            {
-                "variant_id": self.variant.pk,
-                "start_date": start.isoformat(),
-                "end_date": start.isoformat(),
-                "quantity": "3",
-            },
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.context["rental_result"])
-        self.assertIn(
-            "Only 2 unit(s) are available for the entire selected period.",
-            response.context["rental_form"].errors["quantity"],
-        )
-
     def test_inactive_product_is_hidden(self):
         self.product.is_active = False
         self.product.save()
@@ -1196,6 +1153,44 @@ class SessionRentalCartTests(TestCase):
                 "quantity": quantity,
             },
         )
+
+    def test_unavailable_add_to_cart_keeps_selection_on_page(self):
+        start = timezone.localdate() + timedelta(days=1)
+        end = start + timedelta(days=1)
+
+        response = self.add_product(
+            self.product,
+            start=start,
+            end=end,
+            quantity="5",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "customer/product_detail.html")
+        self.assertFormError(
+            response.context["rental_form"],
+            "quantity",
+            "Only 3 unit(s) are available for the entire selected period.",
+        )
+        self.assertContains(response, f'value="{start.isoformat()}"')
+        self.assertContains(response, f'value="{end.isoformat()}"')
+        self.assertNotIn("rental_cart", self.client.session)
+
+    def test_invalid_add_to_cart_shows_field_errors(self):
+        start = timezone.localdate() + timedelta(days=1)
+
+        response = self.add_product(
+            self.product,
+            start=start,
+            end=start + timedelta(days=9),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Rentals must last between 1 and 7 days.",
+        )
+        self.assertNotIn("rental_cart", self.client.session)
 
     def test_customer_can_add_a_valid_selection_to_the_session(self):
         start = timezone.localdate() + timedelta(days=1)
