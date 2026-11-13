@@ -1,0 +1,82 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Review {{ product.name }} | The Rental Rack{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'staff_portal:listing_list' %}">
+    Back to clothing listings
+</a>
+
+<header class="my-4">
+    <h1 class="mb-2">Review listing</h1>
+</header>
+
+<div class="row">
+    <div class="col-lg-8 col-xl-7">
+        <section class="card shadow-sm" aria-labelledby="listing-details-heading">
+            <div class="card-body p-4">
+                <h2 class="h4 mb-4" id="listing-details-heading">Listing details</h2>
+
+                <dl class="row mb-4">
+                    <dt class="col-sm-4">Product</dt>
+                    <dd class="col-sm-8">{{ product.name }}</dd>
+
+                    <dt class="col-sm-4">Vendor</dt>
+                    <dd class="col-sm-8">{{ product.vendor.name }}</dd>
+
+                    <dt class="col-sm-4">Category</dt>
+                    <dd class="col-sm-8">{{ product.category.name }}</dd>
+
+                    <dt class="col-sm-4">Listing status</dt>
+                    <dd class="col-sm-8">
+                        {% if product.is_archived %}Archived{% else %}Published{% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Moderation status</dt>
+                    <dd class="col-sm-8">
+                        {% if product.moderation_blocked %}
+                            <span class="badge text-bg-danger">Blocked</span>
+                        {% else %}
+                            <span class="badge text-bg-success">Allowed</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+
+                {% if product.moderation_blocked %}
+                    <p class="fw-semibold mb-1">Current reason</p>
+                    <p class="text-muted">{{ product.moderation_reason }}</p>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form.action }}
+                        <div class="d-flex flex-wrap gap-2">
+                            <a class="btn btn-outline-secondary"
+                               href="{% url 'staff_portal:listing_list' %}">Cancel</a>
+                            <button class="btn btn-dark" type="submit">Unblock listing</button>
+                        </div>
+                    </form>
+                {% else %}
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form.action }}
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.reason.id_for_label }}">
+                                Reason for blocking
+                            </label>
+                            {{ form.reason }}
+                            {% for error in form.reason.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a class="btn btn-outline-secondary"
+                               href="{% url 'staff_portal:listing_list' %}">Cancel</a>
+                            <button class="btn btn-danger" type="submit">Block listing</button>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

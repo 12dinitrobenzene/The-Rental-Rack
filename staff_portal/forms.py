@@ -124,9 +124,20 @@ class ListingModerationFilterForm(forms.Form):
 
 class ListingModerationForm(forms.Form):
     action = forms.ChoiceField(
-        choices=(("block", "Block"), ("unblock", "Unblock"))
+        choices=(("block", "Block"), ("unblock", "Unblock")),
+        widget=forms.HiddenInput(),
     )
-    reason = forms.CharField(required=False, max_length=500)
+    reason = forms.CharField(
+        required=False,
+        max_length=500,
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "rows": 5,
+                "placeholder": "Explain why this listing should be blocked",
+            }
+        ),
+    )
 
     def clean(self):
         cleaned_data = super().clean()
