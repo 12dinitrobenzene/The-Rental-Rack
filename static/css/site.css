@@ -860,6 +860,65 @@ body {
     }
 }
 
+.login-page {
+    display: grid;
+    min-height: 100svh;
+    padding-block: clamp(2rem, 6vh, 4rem);
+    place-items: center;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 38rem;
+    min-height: min(38rem, calc(100svh - 4rem));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(2rem, 5vw, 3.5rem);
+    border: 1px solid #dee2e6;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 1rem 2.5rem rgb(33 37 41 / 8%);
+}
+
+.login-card__eyebrow {
+    color: #495057;
+    font-size: 0.875rem;
+}
+
+.login-card__intro {
+    color: #495057;
+    font-size: 1.05rem;
+    line-height: 1.6;
+}
+
+.login-card input[type="text"],
+.login-card input[type="password"] {
+    display: block;
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.5rem;
+}
+
+.login-card input:focus {
+    border-color: #495057;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgb(33 37 41 / 12%);
+}
+
+.login-card__footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.login-card__note {
+    color: #495057;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
 /* Shared platform and vendor workspaces */
 
 .workspace-dashboard__eyebrow,
