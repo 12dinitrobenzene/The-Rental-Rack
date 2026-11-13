@@ -1,0 +1,66 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Review listing | The Rental Rack{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'staff_portal:listing_list' %}">
+    Back to listing moderation
+</a>
+
+<header class="my-4">
+    <h1>Review listing</h1>
+    <p class="text-muted mb-0">
+        Review platform moderation without changing the vendor's publish setting.
+    </p>
+</header>
+
+<div class="card">
+    <div class="card-body">
+        <h2 class="h4">{{ product.name }}</h2>
+        <p class="text-muted">
+            {{ product.vendor.name }} · {{ product.category.name }} ·
+            SGD {{ product.daily_rate|floatformat:2 }}/day
+        </p>
+        <p>{{ product.description }}</p>
+        <dl class="row">
+            <dt class="col-sm-3">Vendor setting</dt>
+            <dd class="col-sm-9">
+                {% if product.is_archived %}Archived
+                {% elif product.is_published %}Published
+                {% else %}Draft (unpublished){% endif %}
+            </dd>
+            <dt class="col-sm-3">Moderation</dt>
+            <dd class="col-sm-9">
+                {% if product.moderation_blocked %}
+                    <span class="badge text-bg-danger">Blocked</span>
+                    <p class="small text-muted mt-1 mb-0">
+                        {{ product.moderation_reason }}
+                    </p>
+                {% else %}
+                    <span class="badge text-bg-success">Allowed</span>
+                {% endif %}
+            </dd>
+        </dl>
+
+        <form method="post"
+              action="{% url 'staff_portal:listing_moderate' product.pk %}"
+              class="d-flex flex-wrap gap-2">
+            {% csrf_token %}
+            {% if product.moderation_blocked %}
+                <button class="btn btn-outline-success"
+                        type="submit" name="action" value="unblock">
+                    Unblock
+                </button>
+            {% else %}
+                <input type="text" name="reason" maxlength="500"
+                       class="form-control"
+                       placeholder="Reason (required)" required>
+                <button class="btn btn-outline-danger"
+                        type="submit" name="action" value="block">
+                    Block
+                </button>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

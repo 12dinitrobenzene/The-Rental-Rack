@@ -45,7 +45,11 @@
             {% for product in products %}
                 <tr>
                     <td>
-                        <strong>{{ product.name }}</strong>
+                        <strong>
+                            <a href="{% url 'staff_portal:listing_moderate' product.pk %}">
+                                {{ product.name }}
+                            </a>
+                        </strong>
                         <div class="small text-muted">
                             {{ product.category.name }} · SGD {{ product.daily_rate|floatformat:2 }}/day
                         </div>
@@ -54,7 +58,7 @@
                     <td>
                         {% if product.is_archived %}Archived
                         {% elif product.is_published %}Published
-                        {% else %}Draft{% endif %}
+                        {% else %}Draft (unpublished){% endif %}
                     </td>
                     <td>
                         {% if product.moderation_blocked %}

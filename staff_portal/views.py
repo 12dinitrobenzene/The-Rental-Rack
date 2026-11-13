@@ -6,7 +6,11 @@ from django.db.models import Count, F, Prefetch, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import (
+    require_GET,
+    require_http_methods,
+    require_POST,
+)
 
 from accounts.permissions import require_platform_admin
 from shop.models import (
@@ -23,6 +27,14 @@ from .forms import (
     ListingModerationForm,
     PlatformRentalFilterForm,
     SettlementFilterForm,
+)
+
+# Drafts stay with the vendor until published; blocked listings stay reachable
+# so platform admins can always unblock them.
+MODERATABLE_LISTINGS = (
+    Q(is_published=True)
+    | Q(is_archived=True)
+    | Q(moderation_blocked=True)
 )
 
 
@@ -347,7 +359,8 @@ def platform_listing_list(request):
     filter_form = ListingModerationFilterForm(request.GET)
 
     products = (
-        Product.objects.select_related("vendor", "category")
+        Product.objects.filter(MODERATABLE_LISTINGS)
+        .select_related("vendor", "category")
         .order_by("-moderation_blocked", "vendor__name", "name", "pk")
     )
 
@@ -377,10 +390,24 @@ def platform_listing_list(request):
 
 
 @login_required(login_url="accounts:login")
-@require_POST
+@require_http_methods(["GET", "POST"])
 def platform_listing_moderate(request, product_id):
     require_platform_admin(request.user)
-    product = get_object_or_404(Product, pk=product_id)
+
+    product = get_object_or_404(
+        Product.objects.select_related("vendor", "category").filter(
+            MODERATABLE_LISTINGS,
+        ),
+        pk=product_id,
+    )
+
+    if request.method == "GET":
+        return render(
+            request,
+            "staff_portal/listing_review.html",
+            {"product": product},
+        )
+
     form = ListingModerationForm(request.POST)
 
     if not form.is_valid():
