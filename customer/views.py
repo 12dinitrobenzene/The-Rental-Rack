@@ -779,6 +779,26 @@ class CheckoutView(LoginRequiredMixin, View):
                 )
                 return redirect("customer:cart")
 
+            orderable_variant_ids = set(
+                ProductVariant.objects.filter(
+                    pk__in=[line["variant"].pk for line in cart_lines],
+                    is_active=True,
+                    total_quantity__gt=0,
+                    product__in=visible_products(),
+                ).values_list("pk", flat=True)
+            )
+
+            if any(
+                line["variant"].pk not in orderable_variant_ids
+                for line in cart_lines
+            ):
+                messages.error(
+                    request,
+                    "A product in your cart is no longer available. "
+                    "Remove it before checking out.",
+                )
+                return redirect("customer:cart")
+
             vendor_ids = {
                 line["variant"].product.vendor_id
                 for line in cart_lines

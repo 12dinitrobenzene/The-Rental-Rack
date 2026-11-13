@@ -18,6 +18,12 @@ urlpatterns = [
         views.platform_settlement_list,
         name="settlement_list",
     ),
+    path("listings/", views.platform_listing_list, name="listing_list"),
+    path(
+        "listings/<int:product_id>/moderate/",
+        views.platform_listing_moderate,
+        name="listing_moderate",
+    ),
     path(
         "vendors/<int:vendor_id>/action/",
         views.platform_vendor_action,

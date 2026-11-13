@@ -89,3 +89,51 @@ class SettlementFilterForm(forms.Form):
             )
 
         return cleaned_data
+
+
+class ListingModerationFilterForm(forms.Form):
+    STATUS_CHOICES = (
+        ("", "All listings"),
+        ("blocked", "Blocked only"),
+        ("allowed", "Not blocked"),
+    )
+
+    q = forms.CharField(
+        required=False,
+        label="Search",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Product name or brand",
+            }
+        ),
+    )
+    vendor = forms.ModelChoiceField(
+        queryset=Vendor.objects.order_by("name", "pk"),
+        required=False,
+        empty_label="All vendors",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    status = forms.ChoiceField(
+        required=False,
+        label="Moderation",
+        choices=STATUS_CHOICES,
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+
+class ListingModerationForm(forms.Form):
+    action = forms.ChoiceField(
+        choices=(("block", "Block"), ("unblock", "Unblock"))
+    )
+    reason = forms.CharField(required=False, max_length=500)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        reason = " ".join(cleaned_data.get("reason", "").split())
+        cleaned_data["reason"] = reason
+
+        if cleaned_data.get("action") == "block" and not reason:
+            self.add_error("reason", "Enter a reason before blocking a listing.")
+
+        return cleaned_data
