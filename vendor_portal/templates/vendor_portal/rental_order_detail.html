@@ -17,7 +17,28 @@
     <h2 class="h4" id="order-details-heading">Order details</h2>
     <dl class="row mb-0">
         <dt class="col-sm-4">Customer</dt>
-        <dd class="col-sm-8">{{ order.customer.username }}</dd>
+        <dd class="col-sm-8">
+            {{ order.customer.get_full_name|default:order.customer.username }}
+            <span class="text-muted">({{ order.customer.username }})</span>
+        </dd>
+
+        <dt class="col-sm-4">Email</dt>
+        <dd class="col-sm-8">
+            {% if order.customer.email %}
+                <a href="mailto:{{ order.customer.email }}">{{ order.customer.email }}</a>
+            {% else %}
+                <span class="text-muted">Not provided</span>
+            {% endif %}
+        </dd>
+
+        <dt class="col-sm-4">Phone</dt>
+        <dd class="col-sm-8">
+            {% if customer_phone %}
+                <a href="tel:{{ customer_phone }}">{{ customer_phone }}</a>
+            {% else %}
+                <span class="text-muted">Not provided</span>
+            {% endif %}
+        </dd>
 
         <dt class="col-sm-4">Placed on</dt>
         <dd class="col-sm-8">{{ order.created_at|date:"d M Y, H:i" }}</dd>

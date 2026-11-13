@@ -1016,9 +1016,22 @@ class ReviewCreateView(LoginRequiredMixin, View):
             request,
             "You have already reviewed this rental item.",
         )
+        return self._redirect_after_review(rental_item)
+
+    def _redirect_after_review(self, rental_item):
+        """Show the product page if it is still public, else the order."""
+
+        product_id = rental_item.variant.product_id
+
+        if visible_products().filter(pk=product_id).exists():
+            return redirect(
+                "customer:product_detail",
+                product_id=product_id,
+            )
+
         return redirect(
-            "customer:product_detail",
-            product_id=rental_item.variant.product_id,
+            "customer:order_detail",
+            order_id=rental_item.order_id,
         )
 
     def get(self, request, rental_item_id):
@@ -1071,10 +1084,7 @@ class ReviewCreateView(LoginRequiredMixin, View):
                     "Your review was submitted.",
                 )
 
-            return redirect(
-                "customer:product_detail",
-                product_id=rental_item.variant.product_id,
-            )
+            return self._redirect_after_review(rental_item)
 
         return render(
             request,

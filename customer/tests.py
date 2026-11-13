@@ -2461,6 +2461,31 @@ class ProductReviewTests(TestCase):
             404,
         )
 
+    def test_review_of_hidden_product_redirects_to_order(self):
+        Product.objects.filter(pk=self.product.pk).update(is_archived=True)
+        self.client.force_login(self.customer)
+        review_url = reverse(
+            "customer:review_create",
+            args=[self.completed_item.pk],
+        )
+
+        response = self.client.post(
+            review_url,
+            {"rating": 4, "review_text": "Lovely even though it is gone."},
+        )
+
+        order_url = reverse("customer:order_detail", args=[self.order.pk])
+        self.assertRedirects(response, order_url)
+        self.assertTrue(
+            ProductReview.objects.filter(
+                rental_item=self.completed_item,
+            ).exists()
+        )
+
+        repeat_response = self.client.get(review_url)
+
+        self.assertRedirects(repeat_response, order_url)
+
     def test_product_detail_displays_reviews_and_average_rating(self):
         ProductReview.objects.create(
             rental_item=self.completed_item,
