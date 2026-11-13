@@ -870,6 +870,106 @@ class EmployeeHomeTests(TestCase):
         self.assertEqual(variant.sku, original_sku)
         self.assertEqual(other_response.status_code, 404)
 
+    def post_variant_stock(self, product, variant, total_quantity, is_active=True):
+        data = {
+            "size": variant.size,
+            "colour": variant.colour,
+            "colour_hex": variant.colour_hex,
+            "total_quantity": total_quantity,
+        }
+        if is_active:
+            data["is_active"] = "on"
+        return self.client.post(
+            reverse("vendor_portal:variant_edit", args=[product.pk, variant.pk]),
+            data,
+        )
+
+    def test_stock_cannot_drop_below_overlapping_bookings(self):
+        product = self.create_product(self.vendor, "Stock guard product")
+        variant = self.create_variant(product, "stock-guard", total_quantity=3)
+        order = self.create_order()
+        self.create_rental_item(order, variant, RentalItem.Status.CONFIRMED)
+        self.create_rental_item(order, variant, RentalItem.Status.PREPARING)
+        self.client.force_login(self.user)
+
+        response = self.post_variant_stock(product, variant, 1)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "cannot be lower than 2")
+        variant.refresh_from_db()
+        self.assertEqual(variant.total_quantity, 3)
+
+        response = self.post_variant_stock(product, variant, 2)
+
+        self.assertRedirects(
+            response,
+            reverse("vendor_portal:product_detail", args=[product.pk]),
+        )
+        variant.refresh_from_db()
+        self.assertEqual(variant.total_quantity, 2)
+
+    def test_stock_check_uses_the_busiest_day_not_the_total(self):
+        product = self.create_product(self.vendor, "Busiest day product")
+        variant = self.create_variant(product, "busiest-day", total_quantity=2)
+        order = self.create_order()
+        self.create_rental_item(order, variant, RentalItem.Status.CONFIRMED)
+        later = self.create_rental_item(order, variant, RentalItem.Status.CONFIRMED)
+        RentalItem.objects.filter(pk=later.pk).update(
+            rental_start_date=timezone.localdate() + timedelta(days=5),
+            rental_end_date=timezone.localdate() + timedelta(days=5),
+        )
+        self.client.force_login(self.user)
+
+        response = self.post_variant_stock(product, variant, 1)
+
+        self.assertRedirects(
+            response,
+            reverse("vendor_portal:product_detail", args=[product.pk]),
+        )
+
+    def test_stock_check_counts_unreturned_items_only(self):
+        product = self.create_product(self.vendor, "Unreturned product")
+        variant = self.create_variant(product, "unreturned", total_quantity=5)
+        order = self.create_order()
+        for status in (
+            RentalItem.Status.OVERDUE,
+            RentalItem.Status.RETURNED,
+            RentalItem.Status.COMPLETED,
+            RentalItem.Status.CANCELLED,
+        ):
+            item = self.create_rental_item(order, variant, status)
+            RentalItem.objects.filter(pk=item.pk).update(
+                rental_start_date=timezone.localdate() - timedelta(days=10),
+                rental_end_date=timezone.localdate() - timedelta(days=9),
+            )
+        unpaid = self.create_order(
+            payment_status=RentalOrder.PaymentStatus.PENDING,
+        )
+        self.create_rental_item(unpaid, variant, RentalItem.Status.CONFIRMED)
+        self.client.force_login(self.user)
+
+        response = self.post_variant_stock(product, variant, 1)
+
+        self.assertContains(response, "cannot be lower than 2")
+
+        response = self.post_variant_stock(product, variant, 2)
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_variant_with_bookings_can_still_be_switched_off(self):
+        product = self.create_product(self.vendor, "Switch off product")
+        variant = self.create_variant(product, "switch-off", total_quantity=1)
+        self.create_rental_item(
+            self.create_order(), variant, RentalItem.Status.CONFIRMED
+        )
+        self.client.force_login(self.user)
+
+        response = self.post_variant_stock(product, variant, 1, is_active=False)
+
+        self.assertEqual(response.status_code, 302)
+        variant.refresh_from_db()
+        self.assertFalse(variant.is_active)
+
     def test_duplicate_variant_size_and_colour_is_rejected(self):
         product = self.create_product(self.vendor, "Duplicate variant product")
         ProductVariant.objects.create(
