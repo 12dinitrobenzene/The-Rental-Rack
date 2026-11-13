@@ -3,6 +3,7 @@ import secrets
 from django import forms
 from django.utils import timezone
 
+from shop.availability import peak_reserved_quantity
 from shop.models import (
     Category,
     Product,
@@ -183,6 +184,21 @@ class ProductVariantForm(forms.ModelForm):
                 raise forms.ValidationError(
                     "This product already has a variant in this size "
                     "and colour."
+                )
+
+        total_quantity = cleaned_data.get("total_quantity")
+
+        if self.instance.pk and total_quantity is not None:
+            booked = peak_reserved_quantity(variant=self.instance)
+
+            if total_quantity < booked:
+                self.add_error(
+                    "total_quantity",
+                    (
+                        f"{booked} unit(s) are already booked or not yet "
+                        "returned on at least one upcoming day, so stock "
+                        f"cannot be lower than {booked}."
+                    ),
                 )
 
         return cleaned_data
