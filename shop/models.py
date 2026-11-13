@@ -652,6 +652,10 @@ class RentalSettlement(models.Model):
         )
 
     @property
+    def gross_amount(self):
+        return self.platform_amount + self.vendor_amount
+
+    @property
     def platform_percentage(self):
         return self.commission_rate_snapshot * Decimal("100")
 
