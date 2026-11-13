@@ -1,202 +1,127 @@
 {% extends "layouts/staff.html" %}
 
-{% block title %}Platform workspace | The Rental Rack{% endblock %}
+{% block title %}Platform Admin Homepage | The Rental Rack{% endblock %}
 
 {% block content %}
 <div class="admin-dashboard">
-    <header class="admin-dashboard__header d-flex flex-wrap justify-content-between align-items-end gap-4 mb-5">
-        <div>
-            <p class="admin-dashboard__eyebrow mb-2">
-                Platform administration
-            </p>
-            <h1 class="display-5 fw-semibold mb-2">
-                Platform workspace
-            </h1>
-            <p class="text-muted mb-0">
-                Marketplace activity and settled financial performance.
-            </p>
-        </div>
-
-        <div class="admin-dashboard__actions d-flex flex-wrap gap-2">
-            <a href="{% url 'staff_portal:rental_order_list' %}"
-               class="btn btn-dark">
-                <i class="bi bi-clipboard-data me-1" aria-hidden="true"></i>
-                Monitor rentals
-            </a>
-
-            <a href="{% url 'staff_portal:settlement_list' %}"
-               class="btn btn-outline-dark">
-                <i class="bi bi-receipt me-1" aria-hidden="true"></i>
-                View settlements
-            </a>
-
-            <a href="{% url 'staff_portal:vendor_list' %}"
-               class="btn btn-outline-dark">
-                <i class="bi bi-buildings me-1" aria-hidden="true"></i>
-                Manage vendors
-            </a>
-
-            <a href="{% url 'staff_portal:listing_list' %}"
-               class="btn btn-outline-dark">
-                <i class="bi bi-shield-check me-1" aria-hidden="true"></i>
-                Moderate listings
-            </a>
-        </div>
+    <header class="admin-dashboard__header mb-5">
+        <h1 class="display-5 fw-semibold mb-2">Platform Admin Homepage</h1>
+        <p class="text-muted mb-0">
+            Manage vendors, clothing listings, rentals and marketplace performance.
+        </p>
     </header>
 
-    <section class="mb-5" aria-labelledby="marketplace-activity-heading">
-        <div class="mb-3">
-            <p class="admin-dashboard__section-label mb-1">
-                Current state
-            </p>
-            <h2 class="h3 mb-0" id="marketplace-activity-heading">
-                Marketplace activity
-            </h2>
+    <div class="row g-4">
+        <div class="col-md-6 col-xl-4">
+            <article class="card h-100 border admin-home-card">
+                <div class="card-body d-flex flex-column p-4">
+                    <i class="bi bi-buildings fs-3 mb-3" aria-hidden="true"></i>
+                    <h2 class="h4">Current vendors</h2>
+                    <p class="text-muted mb-1">
+                        {{ approved_vendors }} approved vendor{{ approved_vendors|pluralize }}
+                    </p>
+                    <p class="text-muted mb-4">
+                        {{ suspended_vendors }} suspended vendor{{ suspended_vendors|pluralize }}
+                    </p>
+                    <a class="btn btn-outline-dark mt-auto align-self-start"
+                       href="{% url 'staff_portal:vendor_list' %}?view=current">
+                        Manage current vendors
+                    </a>
+                </div>
+            </article>
         </div>
 
-        <div class="row g-3">
-            {% include "components/metric_card.html" with label="Approved vendors" value=approved_vendors tone="success" icon="bi-building-check" column_class="col-12 col-sm-6 col-xl-3" %}
-
-            {% if suspended_vendors %}
-                {% include "components/metric_card.html" with label="Suspended vendors" value=suspended_vendors tone="danger" icon="bi-building-exclamation" column_class="col-12 col-sm-6 col-xl-3" %}
-            {% else %}
-                {% include "components/metric_card.html" with label="Suspended vendors" value=suspended_vendors tone="neutral" icon="bi-building-exclamation" column_class="col-12 col-sm-6 col-xl-3" %}
-            {% endif %}
-
-            {% include "components/metric_card.html" with label="Visible listings" value=visible_listings tone="neutral" icon="bi-tags" column_class="col-12 col-sm-6 col-xl-3" %}
-
-            {% include "components/metric_card.html" with label="Rental orders" value=rental_orders tone="neutral" icon="bi-bag-check" column_class="col-12 col-sm-6 col-xl-3" %}
-        </div>
-    </section>
-
-    <section class="mb-5" aria-labelledby="financial-performance-heading">
-        <div class="mb-3">
-            <p class="admin-dashboard__section-label mb-1">
-                Completed and settled records
-            </p>
-            <h2 class="h3 mb-0" id="financial-performance-heading">
-                Rental and financial performance
-            </h2>
+        <div class="col-md-6 col-xl-4">
+            <article class="card h-100 border admin-home-card">
+                <div class="card-body d-flex flex-column p-4">
+                    <i class="bi bi-building-add fs-3 mb-3" aria-hidden="true"></i>
+                    <h2 class="h4">New vendors</h2>
+                    <p class="text-muted mb-4">
+                        {{ pending_vendors }} application{{ pending_vendors|pluralize }} awaiting review
+                    </p>
+                    <a class="btn btn-outline-dark mt-auto align-self-start"
+                       href="{% url 'staff_portal:vendor_list' %}?view=new">
+                        Manage new vendors
+                    </a>
+                </div>
+            </article>
         </div>
 
-        <div class="row g-3">
-            {% include "components/metric_card.html" with label="Completed rental items" value=completed_rental_items tone="success" icon="bi-check-circle" column_class="col-12 col-sm-6 col-xl-3" %}
-
-            {% include "components/metric_card.html" with label="Settled gross value" value=settled_gross|floatformat:2 prefix="SGD" tone="financial" icon="bi-cash-stack" column_class="col-12 col-sm-6 col-xl-3" %}
-
-            {% include "components/metric_card.html" with label="Platform commission" value=platform_commission|floatformat:2 prefix="SGD" tone="financial" icon="bi-graph-up-arrow" column_class="col-12 col-sm-6 col-xl-3" %}
-
-            {% include "components/metric_card.html" with label="Vendor payouts" value=vendor_payout|floatformat:2 prefix="SGD" tone="financial" icon="bi-wallet2" column_class="col-12 col-sm-6 col-xl-3" %}
+        <div class="col-md-6 col-xl-4">
+            <article class="card h-100 border admin-home-card">
+                <div class="card-body d-flex flex-column p-4">
+                    <i class="bi bi-tags fs-3 mb-3" aria-hidden="true"></i>
+                    <h2 class="h4">Clothing listings</h2>
+                    <p class="text-muted mb-1">
+                        {{ visible_listings }} visible listing{{ visible_listings|pluralize }}
+                    </p>
+                    <p class="text-muted mb-4">
+                        {{ blocked_listings }} blocked listing{{ blocked_listings|pluralize }}
+                    </p>
+                    <a class="btn btn-outline-dark mt-auto align-self-start"
+                       href="{% url 'staff_portal:listing_list' %}">
+                        Manage clothing listings
+                    </a>
+                </div>
+            </article>
         </div>
-    </section>
 
-    <section class="mb-5" aria-labelledby="vendor-performance-heading">
-        <h2 class="h3 mb-3" id="vendor-performance-heading">
-            Vendor performance
-        </h2>
-        <div class="table-responsive admin-table-wrapper">
-            <table class="table table-hover align-middle admin-table mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th scope="col">Vendor</th>
-                        <th scope="col">Status</th>
-                        <th scope="col" class="text-end">Settled items</th>
-                        <th scope="col" class="text-end">Settled gross</th>
-                        <th scope="col" class="text-end">Platform commission</th>
-                        <th scope="col" class="text-end">Vendor payout</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for vendor in vendor_performance %}
-                        <tr>
-                            <td>
-                                <span class="fw-semibold">{{ vendor.name }}</span>
-                            </td>
-
-                            <td>
-                                {% if vendor.is_suspended %}
-                                    <span class="badge text-bg-danger">
-                                        Suspended
-                                    </span>
-                                {% elif vendor.approval_status == "Approved" %}
-                                    <span class="badge text-bg-success">
-                                        Approved
-                                    </span>
-                                {% elif vendor.approval_status == "Rejected" %}
-                                    <span class="badge text-bg-danger">
-                                        Rejected
-                                    </span>
-                                {% else %}
-                                    <span class="badge text-bg-secondary">
-                                        {{ vendor.get_approval_status_display }}
-                                    </span>
-                                {% endif %}
-                            </td>
-
-                            <td class="text-end fw-semibold">
-                                {{ vendor.settled_items }}
-                            </td>
-
-                            <td class="text-end text-nowrap">
-                                SGD {{ vendor.settled_gross|floatformat:2 }}
-                            </td>
-
-                            <td class="text-end text-nowrap">
-                                SGD {{ vendor.platform_commission|floatformat:2 }}
-                            </td>
-
-                            <td class="text-end text-nowrap">
-                                SGD {{ vendor.vendor_payout|floatformat:2 }}
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center text-muted py-5">
-                                No vendor performance data is available yet.
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="col-md-6 col-xl-4">
+            <article class="card h-100 border admin-home-card">
+                <div class="card-body d-flex flex-column p-4">
+                    <i class="bi bi-bag-check fs-3 mb-3" aria-hidden="true"></i>
+                    <h2 class="h4">Rental orders</h2>
+                    <p class="text-muted mb-1">
+                        {{ rental_orders }} marketplace order{{ rental_orders|pluralize }}
+                    </p>
+                    <p class="text-muted mb-4">
+                        {{ active_rental_items }} active rental item{{ active_rental_items|pluralize }}
+                    </p>
+                    <a class="btn btn-outline-dark mt-auto align-self-start"
+                       href="{% url 'staff_portal:rental_order_list' %}">
+                        Monitor rental orders
+                    </a>
+                </div>
+            </article>
         </div>
-    </section>
 
-    <section aria-labelledby="recent-rentals-heading">
-        <h2 class="h3 mb-3" id="recent-rentals-heading">
-            Recent rental activity
-        </h2>
-        <div class="table-responsive admin-table-wrapper">
-            <table class="table table-hover align-middle admin-table mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th scope="col">Order</th>
-                        <th scope="col">Customer</th>
-                        <th scope="col">Vendor</th>
-                        <th scope="col">Payment</th>
-                        <th scope="col">Items</th>
-                        <th scope="col">Placed on</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in recent_orders %}
-                        <tr>
-                            <td>#{{ order.pk }}</td>
-                            <td>{{ order.customer.username }}</td>
-                            <td>{{ order.vendor.name }}</td>
-                            <td>{{ order.get_payment_status_display }}</td>
-                            <td>{{ order.item_count }}</td>
-                            <td>{{ order.created_at|date:"d M Y, H:i" }}</td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center text-muted py-4">
-                                No rental activity has been recorded yet.
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="col-md-6 col-xl-4">
+            <article class="card h-100 border admin-home-card">
+                <div class="card-body d-flex flex-column p-4">
+                    <i class="bi bi-wallet2 fs-3 mb-3" aria-hidden="true"></i>
+                    <h2 class="h4">Payments &amp; payouts</h2>
+                    <p class="text-muted mb-1">
+                        {{ payment_count }} completed payment{{ payment_count|pluralize }}
+                    </p>
+                    <p class="text-muted mb-4">
+                        SGD {{ settled_gross|floatformat:2 }} distributed
+                    </p>
+                    <a class="btn btn-outline-dark mt-auto align-self-start"
+                       href="{% url 'staff_portal:settlement_list' %}">
+                        View payments &amp; payouts
+                    </a>
+                </div>
+            </article>
         </div>
-    </section>
+
+        <div class="col-md-6 col-xl-4">
+            <article class="card h-100 border admin-home-card">
+                <div class="card-body d-flex flex-column p-4">
+                    <i class="bi bi-graph-up-arrow fs-3 mb-3" aria-hidden="true"></i>
+                    <h2 class="h4">Performance</h2>
+                    <p class="text-muted mb-1">
+                        SGD {{ platform_commission|floatformat:2 }} platform commission
+                    </p>
+                    <p class="text-muted mb-4">
+                        SGD {{ vendor_payout|floatformat:2 }} vendor payouts
+                    </p>
+                    <a class="btn btn-outline-dark mt-auto align-self-start"
+                       href="{% url 'staff_portal:performance' %}">
+                        View performance
+                    </a>
+                </div>
+            </article>
+        </div>
+    </div>
 </div>
 {% endblock %}

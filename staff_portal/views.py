@@ -25,28 +25,68 @@ from .forms import (
 )
 
 
-@login_required(login_url="accounts:login")
-def platform_admin_home(request):
-    require_platform_admin(request.user)
-
-    settlement_totals = RentalSettlement.objects.aggregate(
+def platform_financial_totals():
+    totals = RentalSettlement.objects.aggregate(
         platform_commission=Sum("platform_amount"),
         vendor_payout=Sum("vendor_amount"),
     )
     platform_commission = (
-        settlement_totals["platform_commission"]
-        or Decimal("0.00")
+        totals["platform_commission"] or Decimal("0.00")
     )
-    vendor_payout = (
-        settlement_totals["vendor_payout"]
-        or Decimal("0.00")
+    vendor_payout = totals["vendor_payout"] or Decimal("0.00")
+
+    return {
+        "platform_commission": platform_commission,
+        "vendor_payout": vendor_payout,
+        "settled_gross": platform_commission + vendor_payout,
+    }
+
+
+@login_required(login_url="accounts:login")
+def platform_admin_home(request):
+    require_platform_admin(request.user)
+    financial_totals = platform_financial_totals()
+
+    return render(
+        request,
+        "staff_portal/home.html",
+        {
+            "approved_vendors": Vendor.objects.filter(
+                approval_status=Vendor.ApprovalStatus.APPROVED,
+            ).count(),
+            "pending_vendors": Vendor.objects.filter(
+                approval_status=Vendor.ApprovalStatus.PENDING,
+            ).count(),
+            "suspended_vendors": Vendor.objects.filter(
+                is_suspended=True,
+            ).count(),
+            "visible_listings": visible_products().count(),
+            "blocked_listings": Product.objects.filter(
+                moderation_blocked=True,
+            ).count(),
+            "rental_orders": RentalOrder.objects.count(),
+            "active_rental_items": RentalItem.objects.filter(
+                status__in=[
+                    RentalItem.Status.ACTIVE,
+                    RentalItem.Status.OVERDUE,
+                ],
+            ).count(),
+            "completed_rental_items": RentalItem.objects.filter(
+                status=RentalItem.Status.COMPLETED,
+            ).count(),
+            "payment_count": RentalSettlement.objects.count(),
+            **financial_totals,
+        },
     )
+
+
+@login_required(login_url="accounts:login")
+def platform_performance(request):
+    require_platform_admin(request.user)
 
     vendor_performance = (
         Vendor.objects.annotate(
-            settled_items=Count(
-                "rental_orders__items__settlement",
-            ),
+            settled_items=Count("rental_orders__items__settlement"),
             platform_commission=Sum(
                 "rental_orders__items__settlement__platform_amount",
                 default=Decimal("0.00"),
@@ -57,9 +97,7 @@ def platform_admin_home(request):
             ),
         )
         .annotate(
-            settled_gross=(
-                F("platform_commission") + F("vendor_payout")
-            ),
+            settled_gross=F("platform_commission") + F("vendor_payout"),
         )
         .order_by("-settled_gross", "name", "pk")
     )
@@ -72,24 +110,11 @@ def platform_admin_home(request):
 
     return render(
         request,
-        "staff_portal/home.html",
+        "staff_portal/performance.html",
         {
-            "approved_vendors": Vendor.objects.filter(
-                approval_status=Vendor.ApprovalStatus.APPROVED,
-            ).count(),
-            "suspended_vendors": Vendor.objects.filter(
-                is_suspended=True,
-            ).count(),
-            "visible_listings": visible_products().count(),
-            "rental_orders": RentalOrder.objects.count(),
-            "completed_rental_items": RentalItem.objects.filter(
-                status=RentalItem.Status.COMPLETED,
-            ).count(),
-            "platform_commission": platform_commission,
-            "vendor_payout": vendor_payout,
-            "settled_gross": platform_commission + vendor_payout,
             "vendor_performance": vendor_performance,
             "recent_orders": recent_orders,
+            **platform_financial_totals(),
         },
     )
 
@@ -99,11 +124,27 @@ def platform_vendor_list(request):
     require_platform_admin(request.user)
 
     vendors = Vendor.objects.order_by("name", "pk")
+    vendor_view = request.GET.get("view", "all")
+
+    if vendor_view == "new":
+        vendors = vendors.filter(
+            approval_status=Vendor.ApprovalStatus.PENDING,
+            is_suspended=False,
+        )
+    elif vendor_view == "current":
+        vendors = vendors.filter(
+            approval_status=Vendor.ApprovalStatus.APPROVED,
+            is_suspended=False,
+        )
+    elif vendor_view == "suspended":
+        vendors = vendors.filter(is_suspended=True)
+    else:
+        vendor_view = "all"
 
     return render(
         request,
         "staff_portal/vendors.html",
-        {"vendors": vendors},
+        {"vendors": vendors, "vendor_view": vendor_view},
     )
 
 

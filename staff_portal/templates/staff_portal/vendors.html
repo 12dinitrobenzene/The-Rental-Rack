@@ -3,16 +3,35 @@
 {% block title %}Vendor management | The Rental Rack{% endblock %}
 
 {% block content %}
-<a href="{% url 'staff_portal:home' %}">
-    Back to platform workspace
+<a class="link-secondary" href="{% url 'staff_portal:home' %}">
+    Back to Platform Admin Homepage
 </a>
 
-<header class="mb-4">
+<header class="my-4">
     <h1>Vendor management</h1>
     <p class="text-muted">
         Review vendor approval and manage suspensions.
     </p>
 </header>
+
+<nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Vendor views">
+    <a class="btn {% if vendor_view == 'all' %}btn-dark{% else %}btn-outline-dark{% endif %}"
+       href="{% url 'staff_portal:vendor_list' %}">
+        All vendors
+    </a>
+    <a class="btn {% if vendor_view == 'current' %}btn-dark{% else %}btn-outline-dark{% endif %}"
+       href="{% url 'staff_portal:vendor_list' %}?view=current">
+        Current vendors
+    </a>
+    <a class="btn {% if vendor_view == 'new' %}btn-dark{% else %}btn-outline-dark{% endif %}"
+       href="{% url 'staff_portal:vendor_list' %}?view=new">
+        New vendors
+    </a>
+    <a class="btn {% if vendor_view == 'suspended' %}btn-dark{% else %}btn-outline-dark{% endif %}"
+       href="{% url 'staff_portal:vendor_list' %}?view=suspended">
+        Suspended vendors
+    </a>
+</nav>
 
 <div class="table-responsive">
     <table class="table table-bordered align-middle">
@@ -21,7 +40,9 @@
                 <th scope="col">Vendor</th>
                 <th scope="col">Approval</th>
                 <th scope="col">Suspension</th>
-                <th scope="col">Actions</th>
+                <th scope="col" class="text-center text-nowrap" style="width: 9rem;">
+                    Actions
+                </th>
             </tr>
         </thead>
 
@@ -49,17 +70,17 @@
                         {% endif %}
                     </td>
 
-                    <td>
+                    <td class="text-nowrap" style="width: 9rem;">
                         <form method="post"
                               action="{% url 'staff_portal:vendor_action' vendor.pk %}"
-                              class="d-flex flex-wrap gap-2">
+                              class="d-grid gap-2">
                             {% csrf_token %}
 
                             {% if vendor.approval_status != "Approved" %}
                                 <button type="submit"
                                         name="action"
                                         value="approve"
-                                        class="btn btn-sm btn-outline-success">
+                                        class="btn btn-sm btn-outline-success w-100">
                                     Approve
                                 </button>
                             {% endif %}
@@ -68,14 +89,14 @@
                                 <button type="submit"
                                         name="action"
                                         value="restore"
-                                        class="btn btn-sm btn-outline-dark">
+                                        class="btn btn-sm btn-outline-dark w-100">
                                     Restore
                                 </button>
                             {% else %}
                                 <button type="submit"
                                         name="action"
                                         value="suspend"
-                                        class="btn btn-sm btn-outline-danger">
+                                        class="btn btn-sm btn-outline-danger w-100">
                                     Suspend
                                 </button>
                             {% endif %}
@@ -84,8 +105,8 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="4" class="text-muted">
-                        No vendors have been registered.
+                    <td colspan="4" class="text-center text-muted py-5">
+                        No vendors match this view.
                     </td>
                 </tr>
             {% endfor %}

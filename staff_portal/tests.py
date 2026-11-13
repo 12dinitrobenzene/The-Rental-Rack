@@ -63,7 +63,7 @@ class PlatformAdminWorkspaceTests(TestCase):
             response,
             "staff_portal/home.html",
         )
-        self.assertContains(response, "Platform workspace")
+        self.assertContains(response, "Platform Admin Homepage")
 
     def test_other_roles_and_missing_role_are_forbidden(self):
         for role in (CUSTOMER_GROUP, VENDOR_EMPLOYEE_GROUP, None):
@@ -269,9 +269,9 @@ class PlatformDashboardTests(TestCase):
             response.context["settled_gross"],
             Decimal("30.00"),
         )
-        self.assertContains(response, "Marketplace activity")
-        self.assertContains(response, "Visible listings")
-        self.assertContains(response, "Vendor performance")
+        self.assertContains(response, "Clothing listings")
+        self.assertContains(response, "Payments &amp; payouts")
+        self.assertContains(response, "View performance")
 
     def test_vendor_performance_and_recent_orders_are_ordered(self):
         extra_order_ids = []
@@ -286,7 +286,7 @@ class PlatformDashboardTests(TestCase):
             )
             extra_order_ids.append(order.pk)
 
-        response = self.client.get(self.url)
+        response = self.client.get(reverse("staff_portal:performance"))
         vendor_rows = list(response.context["vendor_performance"])
         recent_orders = list(response.context["recent_orders"])
 
@@ -893,7 +893,7 @@ class PlatformListingModerationTests(TestCase):
         self.assertContains(response, self.product.name)
         self.assertContains(response, "Existing reason")
         dashboard_response = self.client.get(reverse("staff_portal:home"))
-        self.assertContains(dashboard_response, "Moderate listings")
+        self.assertContains(dashboard_response, "Manage clothing listings")
 
     def test_listing_filters_search_by_name_or_brand_and_moderation(self):
         blocked_product = Product.objects.create(

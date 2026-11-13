@@ -832,6 +832,23 @@ body {
     border-bottom: 0;
 }
 
+.moderation-actions {
+    width: 11rem;
+}
+
+.moderation-form {
+    min-width: 15rem;
+    white-space: normal;
+}
+
+.moderation-form summary {
+    list-style: none;
+}
+
+.moderation-form summary::-webkit-details-marker {
+    display: none;
+}
+
 @media (max-width: 575.98px) {
     .admin-dashboard__actions {
         width: 100%;
