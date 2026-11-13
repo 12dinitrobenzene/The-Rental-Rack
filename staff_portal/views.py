@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, F, Prefetch, Q, Sum
+from django.db.models.functions import TruncMonth
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -102,6 +103,48 @@ def platform_performance(request):
         .order_by("-settled_gross", "name", "pk")
     )
 
+    category_performance = (
+        RentalSettlement.objects
+        .values(
+            category_name=F("rental_item__variant__product__category__name"),
+        )
+        .annotate(
+            settled_items=Count("pk"),
+            rented_units=Sum("rental_item__quantity"),
+            platform_commission=Sum("platform_amount"),
+            vendor_payout=Sum("vendor_amount"),
+        )
+        .annotate(
+            settled_gross=F("platform_commission") + F("vendor_payout"),
+        )
+        .order_by("-settled_gross", "category_name")
+    )
+
+    monthly_trend = list(
+        RentalSettlement.objects
+        .annotate(month=TruncMonth("created_at"))
+        .values("month")
+        .annotate(
+            settled_items=Count("pk"),
+            platform_commission=Sum("platform_amount"),
+            vendor_payout=Sum("vendor_amount"),
+        )
+        .annotate(
+            settled_gross=F("platform_commission") + F("vendor_payout"),
+        )
+        .order_by("month")
+    )
+
+    previous_gross = None
+
+    for month in monthly_trend:
+        month["change"] = (
+            None
+            if previous_gross is None
+            else month["settled_gross"] - previous_gross
+        )
+        previous_gross = month["settled_gross"]
+
     recent_orders = (
         RentalOrder.objects.select_related("customer", "vendor")
         .annotate(item_count=Count("items"))
@@ -113,6 +156,8 @@ def platform_performance(request):
         "staff_portal/performance.html",
         {
             "vendor_performance": vendor_performance,
+            "category_performance": category_performance,
+            "monthly_trend": monthly_trend,
             "recent_orders": recent_orders,
             **platform_financial_totals(),
         },

@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -304,6 +304,74 @@ class PlatformDashboardTests(TestCase):
             list(reversed(extra_order_ids))
             + [self.cancelled_order.pk],
         )
+
+    def test_performance_ranks_categories_from_settlements(self):
+        accessories = Category.objects.create(name="Dashboard Accessories")
+        product = Product.objects.create(
+            vendor=self.vendor_a,
+            category=accessories,
+            name="Dashboard Bag",
+            description="Dashboard test clothing.",
+            brand="Test",
+            daily_rate=Decimal("10.00"),
+        )
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="dashboard-bag",
+            size="One size",
+            colour="Brown",
+            total_quantity=1,
+        )
+        _, item = self._create_order_item(
+            self.vendor_a,
+            variant,
+            RentalItem.Status.COMPLETED,
+            quantity=1,
+            line_total=Decimal("5.00"),
+        )
+        RentalSettlement.objects.create(
+            rental_item=item,
+            commission_rate_snapshot=Decimal("0.2000"),
+            platform_amount=Decimal("1.00"),
+            vendor_amount=Decimal("4.00"),
+        )
+
+        response = self.client.get(reverse("staff_portal:performance"))
+        rows = list(response.context["category_performance"])
+
+        self.assertEqual(
+            [row["category_name"] for row in rows],
+            ["Dashboard Clothing", "Dashboard Accessories"],
+        )
+        self.assertEqual(rows[0]["settled_items"], 2)
+        self.assertEqual(rows[0]["rented_units"], 3)
+        self.assertEqual(rows[0]["settled_gross"], Decimal("30.00"))
+        self.assertEqual(rows[1]["settled_gross"], Decimal("5.00"))
+        self.assertEqual(
+            sum(row["settled_gross"] for row in rows),
+            response.context["settled_gross"],
+        )
+        self.assertContains(response, "Category performance")
+
+    def test_performance_shows_monthly_trend(self):
+        older = RentalSettlement.objects.get(rental_item__order=self.alpha_order)
+        RentalSettlement.objects.filter(pk=older.pk).update(
+            created_at=older.created_at - timedelta(days=40),
+        )
+
+        response = self.client.get(reverse("staff_portal:performance"))
+        trend = response.context["monthly_trend"]
+
+        self.assertEqual(len(trend), 2)
+        self.assertEqual(trend[0]["settled_gross"], Decimal("10.00"))
+        self.assertIsNone(trend[0]["change"])
+        self.assertEqual(trend[1]["settled_gross"], Decimal("20.00"))
+        self.assertEqual(trend[1]["change"], Decimal("10.00"))
+        self.assertEqual(
+            sum(month["settled_gross"] for month in trend),
+            response.context["settled_gross"],
+        )
+        self.assertContains(response, "Monthly trend")
 
 
 class PlatformRentalMonitoringTests(TestCase):

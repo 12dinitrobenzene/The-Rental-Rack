@@ -71,6 +71,82 @@
     </div>
 </section>
 
+<section class="mb-5" aria-labelledby="category-performance-heading">
+    <h2 class="h3 mb-3" id="category-performance-heading">Category performance</h2>
+    <div class="table-responsive admin-table-wrapper">
+        <table class="table table-hover align-middle admin-table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Category</th>
+                    <th scope="col" class="text-end">Completed payments</th>
+                    <th scope="col" class="text-end">Units rented</th>
+                    <th scope="col" class="text-end">Settled value</th>
+                    <th scope="col" class="text-end">Platform commission</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in category_performance %}
+                    <tr>
+                        <td class="fw-semibold">{{ category.category_name }}</td>
+                        <td class="text-end">{{ category.settled_items }}</td>
+                        <td class="text-end">{{ category.rented_units }}</td>
+                        <td class="text-end text-nowrap">SGD {{ category.settled_gross|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap">SGD {{ category.platform_commission|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            No category performance data is available yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="monthly-trend-heading">
+    <h2 class="h3 mb-3" id="monthly-trend-heading">Monthly trend</h2>
+    <div class="table-responsive admin-table-wrapper">
+        <table class="table table-hover align-middle admin-table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Month</th>
+                    <th scope="col" class="text-end">Completed payments</th>
+                    <th scope="col" class="text-end">Settled value</th>
+                    <th scope="col" class="text-end">Platform commission</th>
+                    <th scope="col" class="text-end">Change vs previous month</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for month in monthly_trend %}
+                    <tr>
+                        <td class="fw-semibold">{{ month.month|date:"M Y" }}</td>
+                        <td class="text-end">{{ month.settled_items }}</td>
+                        <td class="text-end text-nowrap">SGD {{ month.settled_gross|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap">SGD {{ month.platform_commission|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap">
+                            {% if month.change is None %}
+                                <span class="text-muted">First month</span>
+                            {% elif month.change >= 0 %}
+                                <span class="text-success">+SGD {{ month.change|floatformat:2 }}</span>
+                            {% else %}
+                                <span class="text-danger">SGD {{ month.change|floatformat:2 }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            No settled rentals yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
 <section aria-labelledby="recent-rentals-heading">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
         <div>
