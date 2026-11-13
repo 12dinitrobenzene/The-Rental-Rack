@@ -13,14 +13,14 @@
     </p>
     <h1 class="mb-1">Payments &amp; payouts</h1>
     <p class="text-muted mb-0">
-        Review completed rental payments, platform commission and vendor
-        payouts. Recorded amounts cannot be changed here.
+        Track completed rental payments and how the earnings are shared.
     </p>
 </header>
 
 <form method="get"
       action="{% url 'staff_portal:settlement_list' %}"
       class="border rounded p-3 mb-4">
+    <h2 class="h5 mb-3">Filter records</h2>
     {{ filter_form.non_field_errors }}
 
     <div class="row g-3 align-items-end">
@@ -40,7 +40,7 @@
             <button class="btn btn-dark" type="submit">Apply filters</button>
             <a class="btn btn-outline-secondary"
                href="{% url 'staff_portal:settlement_list' %}">
-                Reset
+                Clear
             </a>
         </div>
     </div>
@@ -51,10 +51,10 @@
         Filtered summary
     </h2>
     <div class="row g-3">
-        {% include "components/metric_card.html" with label="Completed payments" value=settlement_count description="One payment record per completed rental item" %}
-        {% include "components/metric_card.html" with label="Total distributed" value=gross_amount|floatformat:2 prefix="SGD" description="Platform commission plus vendor payout" %}
-        {% include "components/metric_card.html" with label="Platform commission" value=platform_amount|floatformat:2 prefix="SGD" description="Amount allocated to the platform" %}
-        {% include "components/metric_card.html" with label="Vendor payouts" value=vendor_amount|floatformat:2 prefix="SGD" description="Amount allocated to vendors" %}
+        {% include "components/metric_card.html" with label="Completed rentals" value=settlement_count column_class="col-12 col-sm-6 col-xl-3" %}
+        {% include "components/metric_card.html" with label="Total rental earnings" value=gross_amount|floatformat:2 prefix="SGD" column_class="col-12 col-sm-6 col-xl-3" %}
+        {% include "components/metric_card.html" with label="Platform share" value=platform_amount|floatformat:2 prefix="SGD" column_class="col-12 col-sm-6 col-xl-3" %}
+        {% include "components/metric_card.html" with label="Vendor share" value=vendor_amount|floatformat:2 prefix="SGD" column_class="col-12 col-sm-6 col-xl-3" %}
     </div>
 </section>
 
@@ -62,7 +62,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
         <div>
             <h2 class="h3 mb-1" id="settlement-records-heading">
-                Payment &amp; payout records
+                Earnings records
             </h2>
             <p class="text-muted mb-0">
                 Most recently completed payments appear first.
@@ -73,48 +73,71 @@
         </span>
     </div>
 
-    <div class="table-responsive border rounded">
+    <div class="table-responsive workspace-table-wrapper">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th scope="col">Rental item</th>
-                    <th scope="col">Order</th>
-                    <th scope="col">Vendor</th>
-                    <th scope="col">Customer</th>
-                    <th scope="col">Gross amount</th>
-                    <th scope="col">Commission rate</th>
-                    <th scope="col">Platform amount</th>
-                    <th scope="col">Vendor amount</th>
-                    <th scope="col">Settled on</th>
+                    <th scope="col">Rental</th>
+                    <th scope="col">Vendor and customer</th>
+                    <th scope="col" class="text-end">Total earnings</th>
+                    <th scope="col">Earnings breakdown</th>
+                    <th scope="col">Recorded on</th>
                 </tr>
             </thead>
             <tbody>
                 {% for settlement in settlements %}
                     <tr>
                         <td>
-                            <span class="fw-semibold">
-                                #{{ settlement.rental_item.pk }}
-                            </span>
-                            <span class="d-block small text-muted">
+                            <span class="d-block fw-semibold">
                                 {{ settlement.rental_item.product_name_snapshot }}
                             </span>
+                            <span class="d-block small text-muted mt-1">
+                                Item #{{ settlement.rental_item.pk }}
+                                &middot; Order #{{ settlement.rental_item.order.pk }}
+                            </span>
                         </td>
-                        <td>#{{ settlement.rental_item.order.pk }}</td>
-                        <td>{{ settlement.rental_item.order.vendor.name }}</td>
                         <td>
-                            {{ settlement.rental_item.order.customer.username }}
+                            <span class="d-block">
+                                <span class="text-muted">Vendor:</span>
+                                {{ settlement.rental_item.order.vendor.name }}
+                            </span>
+                            <span class="d-block mt-1">
+                                <span class="text-muted">Customer:</span>
+                                {{ settlement.rental_item.order.customer.username }}
+                            </span>
                         </td>
-                        <td>
+                        <td class="text-end fw-semibold text-nowrap">
                             SGD {{ settlement.gross_amount|floatformat:2 }}
                         </td>
-                        <td>{{ settlement.platform_percentage|floatformat:2 }}%</td>
-                        <td>SGD {{ settlement.platform_amount|floatformat:2 }}</td>
-                        <td>SGD {{ settlement.vendor_amount|floatformat:2 }}</td>
-                        <td>{{ settlement.created_at|date:"d M Y, H:i" }}</td>
+                        <td>
+                            <span class="d-block">
+                                <span class="text-muted">
+                                    Platform share
+                                    ({{ settlement.platform_percentage|floatformat:2 }}%):
+                                </span>
+                                <span class="fw-semibold text-nowrap">
+                                    SGD {{ settlement.platform_amount|floatformat:2 }}
+                                </span>
+                            </span>
+                            <span class="d-block mt-1">
+                                <span class="text-muted">Vendor share:</span>
+                                <span class="fw-semibold text-nowrap">
+                                    SGD {{ settlement.vendor_amount|floatformat:2 }}
+                                </span>
+                            </span>
+                        </td>
+                        <td class="text-nowrap">
+                            <span class="d-block">
+                                {{ settlement.created_at|date:"d M Y" }}
+                            </span>
+                            <span class="d-block small text-muted">
+                                {{ settlement.created_at|date:"H:i" }}
+                            </span>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center py-5">
+                        <td colspan="5" class="text-center py-5">
                             {% if filter_form.errors %}
                                 <p class="fw-semibold mb-1">
                                     Correct the filters above
@@ -128,8 +151,7 @@
                                     No payments found
                                 </p>
                                 <p class="text-muted mb-0">
-                                    Try changing the filters, or check again
-                                    after completed rentals are inspected.
+                                    Try changing the vendor or date filters.
                                 </p>
                             {% endif %}
                         </td>

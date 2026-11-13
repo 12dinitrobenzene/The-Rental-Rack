@@ -1,14 +1,21 @@
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.models import Group
+from django.db import transaction
 from django.db.models import Count, F, Prefetch, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
 from django.views.decorators.http import require_GET, require_POST
+from django.views.generic import CreateView, ListView, UpdateView
 
-from accounts.permissions import require_platform_admin
+from accounts.permissions import require_master_admin, require_platform_admin
+from accounts.roles import PLATFORM_ADMIN_GROUP
 from shop.models import (
     Product,
     RentalItem,
@@ -21,9 +28,126 @@ from shop.visibility import visible_products
 from .forms import (
     ListingModerationFilterForm,
     ListingModerationForm,
+    PlatformAdminCreationForm,
+    PlatformAdminUpdateForm,
     PlatformRentalFilterForm,
     SettlementFilterForm,
 )
+
+
+User = get_user_model()
+
+
+class MasterAdminRequiredMixin(LoginRequiredMixin):
+    login_url = "accounts:login"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            require_master_admin(request.user)
+        return super().dispatch(request, *args, **kwargs)
+
+
+def manageable_platform_admins():
+    return User.objects.filter(
+        groups__name=PLATFORM_ADMIN_GROUP,
+        is_superuser=False,
+    ).distinct()
+
+
+class PlatformAdminListView(MasterAdminRequiredMixin, ListView):
+    template_name = "staff_portal/admin_list.html"
+    context_object_name = "admins"
+
+    def get_queryset(self):
+        return manageable_platform_admins().order_by(
+            "first_name",
+            "last_name",
+            "username",
+        )
+
+
+class PlatformAdminCreateView(MasterAdminRequiredMixin, CreateView):
+    form_class = PlatformAdminCreationForm
+    template_name = "staff_portal/admin_form.html"
+    success_url = reverse_lazy("staff_portal:admin_list")
+    extra_context = {
+        "page_title": "Create admin",
+        "submit_label": "Create admin",
+    }
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            user = form.save(commit=False)
+            user.is_active = True
+            user.is_staff = False
+            user.is_superuser = False
+            user.save()
+            group, _ = Group.objects.get_or_create(
+                name=PLATFORM_ADMIN_GROUP,
+            )
+            user.groups.set([group])
+            self.object = user
+
+        messages.success(
+            self.request,
+            f"Admin account for {user.username} has been created.",
+        )
+        return redirect(self.success_url)
+
+
+class PlatformAdminUpdateView(MasterAdminRequiredMixin, UpdateView):
+    form_class = PlatformAdminUpdateForm
+    template_name = "staff_portal/admin_form.html"
+    success_url = reverse_lazy("staff_portal:admin_list")
+    extra_context = {
+        "page_title": "Edit admin",
+        "submit_label": "Save changes",
+    }
+
+    def get_queryset(self):
+        return manageable_platform_admins()
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            user = form.save(commit=False)
+            user.is_staff = False
+            user.is_superuser = False
+            user.save()
+            group, _ = Group.objects.get_or_create(
+                name=PLATFORM_ADMIN_GROUP,
+            )
+            user.groups.set([group])
+            self.object = user
+
+        messages.success(
+            self.request,
+            f"Admin account for {user.username} has been updated.",
+        )
+        return redirect(self.success_url)
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def platform_admin_status_action(request, user_id):
+    require_master_admin(request.user)
+    admin_user = get_object_or_404(
+        manageable_platform_admins(),
+        pk=user_id,
+    )
+    action = request.POST.get("action")
+
+    if action == "deactivate":
+        admin_user.is_active = False
+        message = f"{admin_user.username} has been deactivated."
+    elif action == "reactivate":
+        admin_user.is_active = True
+        message = f"{admin_user.username} has been reactivated."
+    else:
+        return HttpResponseBadRequest("Unknown admin account action.")
+
+    admin_user.save(update_fields=["is_active"])
+    messages.success(request, message)
+    return redirect("staff_portal:admin_list")
 
 
 def platform_financial_totals():

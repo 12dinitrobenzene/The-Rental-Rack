@@ -90,6 +90,85 @@ class PlatformAdminWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
 
+class MasterAdminManagementTests(TestCase):
+    def setUp(self):
+        self.group, _ = Group.objects.get_or_create(
+            name=PLATFORM_ADMIN_GROUP,
+        )
+        self.master = get_user_model().objects.create_superuser(
+            username="master-admin",
+            email="master@example.com",
+            password="Master-pass-7429!",
+        )
+
+    def test_master_can_sign_in_and_create_platform_admin(self):
+        login_response = self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "master-admin",
+                "password": "Master-pass-7429!",
+            },
+        )
+        self.assertRedirects(
+            login_response,
+            reverse("staff_portal:home"),
+        )
+
+        response = self.client.post(
+            reverse("staff_portal:admin_create"),
+            {
+                "first_name": "Aisha",
+                "last_name": "Tan",
+                "username": "aisha-admin",
+                "email": "aisha.admin@example.com",
+                "password1": "Admin-pass-7429!",
+                "password2": "Admin-pass-7429!",
+            },
+        )
+
+        self.assertRedirects(response, reverse("staff_portal:admin_list"))
+        admin = get_user_model().objects.get(username="aisha-admin")
+        self.assertTrue(admin.groups.filter(name=PLATFORM_ADMIN_GROUP).exists())
+        self.assertFalse(admin.is_staff)
+        self.assertFalse(admin.is_superuser)
+
+    def test_ordinary_platform_admin_cannot_manage_admins(self):
+        admin = get_user_model().objects.create_user(
+            username="ordinary-admin",
+            password="Admin-pass-7429!",
+        )
+        admin.groups.add(self.group)
+        self.client.force_login(admin)
+
+        response = self.client.get(reverse("staff_portal:admin_list"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_master_can_deactivate_platform_admin(self):
+        admin = get_user_model().objects.create_user(
+            username="inactive-admin",
+            password="Admin-pass-7429!",
+        )
+        admin.groups.add(self.group)
+        self.client.force_login(self.master)
+
+        response = self.client.post(
+            reverse("staff_portal:admin_status", args=[admin.pk]),
+            {"action": "deactivate"},
+        )
+
+        self.assertRedirects(response, reverse("staff_portal:admin_list"))
+        admin.refresh_from_db()
+        self.assertFalse(admin.is_active)
+        self.client.logout()
+        self.assertFalse(
+            self.client.login(
+                username="inactive-admin",
+                password="Admin-pass-7429!",
+            )
+        )
+
+
 class PlatformDashboardTests(TestCase):
     @classmethod
     def setUpTestData(cls):

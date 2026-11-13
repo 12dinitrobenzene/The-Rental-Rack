@@ -20,6 +20,9 @@ def role_for_user(user):
     if not user.is_authenticated:
         return None
 
+    if user.is_superuser:
+        return PLATFORM_ADMIN_GROUP
+
     role_names = set(
         user.groups.filter(name__in=APPLICATION_ROLE_GROUPS).values_list(
             "name",

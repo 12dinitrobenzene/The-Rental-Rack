@@ -47,6 +47,15 @@ def require_platform_admin(user):
         )
 
 
+def is_master_admin(user):
+    return user.is_authenticated and user.is_active and user.is_superuser
+
+
+def require_master_admin(user):
+    if not is_master_admin(user):
+        raise PermissionDenied("Master administrator access is required.")
+
+
 def require_customer(user):
     if (
         not user.is_authenticated

@@ -8,6 +8,26 @@ app_name = "staff_portal"
 urlpatterns = [
     path("", views.platform_admin_home, name="home"),
     path(
+        "admins/",
+        views.PlatformAdminListView.as_view(),
+        name="admin_list",
+    ),
+    path(
+        "admins/create/",
+        views.PlatformAdminCreateView.as_view(),
+        name="admin_create",
+    ),
+    path(
+        "admins/<int:pk>/edit/",
+        views.PlatformAdminUpdateView.as_view(),
+        name="admin_update",
+    ),
+    path(
+        "admins/<int:user_id>/status/",
+        views.platform_admin_status_action,
+        name="admin_status",
+    ),
+    path(
         "performance/",
         views.platform_performance,
         name="performance",

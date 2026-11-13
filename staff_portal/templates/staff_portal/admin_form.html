@@ -1,0 +1,48 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}{{ page_title }} | The Rental Rack{% endblock %}
+
+{% block content %}
+<section class="mx-auto" style="max-width: 42rem;" aria-labelledby="admin-form-heading">
+    <p class="workspace-dashboard__eyebrow mb-2">ADMIN ACCOUNTS</p>
+    <h1 id="admin-form-heading" class="h2 mb-2">{{ page_title }}</h1>
+    <p class="text-muted mb-4">
+        This account will have access to the platform admin homepage.
+    </p>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger" role="alert">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="row g-3">
+            {% for field in form %}
+                <div class="col-12">
+                    <label class="form-label" for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text|safe }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <p class="text-danger small mb-0 mt-1">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <button class="btn btn-dark" type="submit">{{ submit_label }}</button>
+            <a class="btn btn-outline-secondary"
+               href="{% url 'staff_portal:admin_list' %}">
+                Cancel
+            </a>
+        </div>
+    </form>
+</section>
+{% endblock %}
