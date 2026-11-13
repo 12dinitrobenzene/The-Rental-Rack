@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from tempfile import TemporaryDirectory
 
@@ -7,6 +7,7 @@ from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import VendorEmployee
 from accounts.roles import VENDOR_EMPLOYEE_GROUP
@@ -100,8 +101,8 @@ class EmployeeHomeTests(TestCase):
             product_name_snapshot=name,
             daily_rate_snapshot=Decimal("10.00"),
             quantity=1,
-            rental_start_date=date(2026, 11, 1),
-            rental_end_date=date(2026, 11, 1),
+            rental_start_date=timezone.localdate() + timedelta(days=1),
+            rental_end_date=timezone.localdate() + timedelta(days=1),
             rental_days=1,
             line_total=Decimal("10.00"),
             status=status,
@@ -135,6 +136,60 @@ class EmployeeHomeTests(TestCase):
         )
         self.assertContains(response, "Rental orders")
         self.assertNotContains(response, "Rental fulfilment")
+
+    def test_dashboard_and_order_list_mark_late_active_items_overdue(self):
+        product = self.create_product(self.vendor, "Late rental product")
+        variant = self.create_variant(product, "late-rental-product-m")
+        order = self.create_order()
+        dashboard_item = self.create_rental_item(
+            order,
+            variant,
+            RentalItem.Status.ACTIVE,
+            name="Late dashboard item",
+        )
+        order_list_item = self.create_rental_item(
+            order,
+            variant,
+            RentalItem.Status.ACTIVE,
+            name="Late order list item",
+        )
+        yesterday = timezone.localdate() - timedelta(days=1)
+        RentalItem.objects.filter(
+            pk__in=[dashboard_item.pk, order_list_item.pk]
+        ).update(
+            rental_start_date=yesterday - timedelta(days=1),
+            rental_end_date=yesterday,
+        )
+        self.client.force_login(self.user)
+
+        dashboard_response = self.client.get(
+            reverse("vendor_portal:home")
+        )
+
+        self.assertEqual(dashboard_response.status_code, 200)
+        dashboard_item.refresh_from_db()
+        order_list_item.refresh_from_db()
+        self.assertEqual(dashboard_item.status, RentalItem.Status.OVERDUE)
+        self.assertEqual(order_list_item.status, RentalItem.Status.OVERDUE)
+
+        later_item = self.create_rental_item(
+            order,
+            variant,
+            RentalItem.Status.ACTIVE,
+            name="Late order list trigger item",
+        )
+        RentalItem.objects.filter(pk=later_item.pk).update(
+            rental_start_date=yesterday - timedelta(days=1),
+            rental_end_date=yesterday,
+        )
+
+        order_list_response = self.client.get(
+            reverse("vendor_portal:rental_order_list")
+        )
+
+        self.assertEqual(order_list_response.status_code, 200)
+        later_item.refresh_from_db()
+        self.assertEqual(later_item.status, RentalItem.Status.OVERDUE)
 
     def test_analytics_page_renders_for_vendor_employee(self):
         self.client.force_login(self.user)

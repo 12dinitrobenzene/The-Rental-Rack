@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -21,6 +21,7 @@ from shop.models import (
     StyleTag,
     Vendor,
 )
+from shop.rental_rules import mark_overdue_rentals
 
 
 class RentalLifecycleModelTests(TestCase):
@@ -169,6 +170,68 @@ class RentalLifecycleModelTests(TestCase):
         )
 
         self.assertEqual(availability[date(2026, 12, 1)], 2)
+
+    def test_late_active_item_stays_unavailable_after_rental_end(self):
+        today = timezone.localdate()
+        self.item.rental_start_date = today - timedelta(days=3)
+        self.item.rental_end_date = today - timedelta(days=1)
+        self.item.save(
+            update_fields=["rental_start_date", "rental_end_date"]
+        )
+
+        availability = available_quantity_by_day(
+            variant=self.variant,
+            start_date=today,
+            end_date=today,
+        )
+
+        self.assertEqual(availability[today], 2)
+
+    def test_mark_overdue_rentals_updates_only_eligible_items(self):
+        today = timezone.localdate()
+        self.item.rental_end_date = today - timedelta(days=1)
+        self.item.save(update_fields=["rental_end_date"])
+        future_item = RentalItem.objects.create(
+            order=self.order,
+            variant=self.variant,
+            product_name_snapshot="Future Active Jacket",
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=today,
+            rental_end_date=today,
+            rental_days=1,
+            line_total=Decimal("10.00"),
+            status=RentalItem.Status.ACTIVE,
+        )
+        unpaid_order = RentalOrder.objects.create(
+            customer=self.customer,
+            vendor=self.vendor,
+            delivery_address="2 Test Street",
+            payment_status=RentalOrder.PaymentStatus.PENDING,
+            total_amount=Decimal("10.00"),
+        )
+        unpaid_item = RentalItem.objects.create(
+            order=unpaid_order,
+            variant=self.variant,
+            product_name_snapshot="Unpaid Active Jacket",
+            daily_rate_snapshot=Decimal("10.00"),
+            quantity=1,
+            rental_start_date=today - timedelta(days=2),
+            rental_end_date=today - timedelta(days=1),
+            rental_days=1,
+            line_total=Decimal("10.00"),
+            status=RentalItem.Status.ACTIVE,
+        )
+
+        updated_count = mark_overdue_rentals(vendor=self.vendor, today=today)
+
+        self.item.refresh_from_db()
+        future_item.refresh_from_db()
+        unpaid_item.refresh_from_db()
+        self.assertEqual(updated_count, 1)
+        self.assertEqual(self.item.status, RentalItem.Status.OVERDUE)
+        self.assertEqual(future_item.status, RentalItem.Status.ACTIVE)
+        self.assertEqual(unpaid_item.status, RentalItem.Status.ACTIVE)
 
     def test_eligible_completed_item_reconciles_80_20_settlement(self):
         self.item.status = RentalItem.Status.RETURNED

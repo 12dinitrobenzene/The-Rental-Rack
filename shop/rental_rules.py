@@ -19,3 +19,23 @@ def calculate_rental_totals(
     line_total = daily_rate * quantity * rental_days
 
     return rental_days, line_total
+
+
+def mark_overdue_rentals(*, vendor=None, today=None):
+    """Move paid Active items whose end date has passed to Overdue."""
+
+    from django.utils import timezone
+
+    from .models import RentalItem, RentalOrder
+
+    today = today or timezone.localdate()
+    late_items = RentalItem.objects.filter(
+        status=RentalItem.Status.ACTIVE,
+        rental_end_date__lt=today,
+        order__payment_status=RentalOrder.PaymentStatus.PAID,
+    )
+
+    if vendor is not None:
+        late_items = late_items.filter(order__vendor=vendor)
+
+    return late_items.update(status=RentalItem.Status.OVERDUE)

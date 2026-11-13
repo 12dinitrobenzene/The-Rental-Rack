@@ -22,6 +22,7 @@ from shop.models import (
     RentalSettlement,
     ReturnInspection,
 )
+from shop.rental_rules import mark_overdue_rentals
 from shop.visibility import visible_products
 
 from .forms import (
@@ -269,6 +270,7 @@ def employee_rental_item_or_404(employee, item_id, *, for_update=False):
 @login_required(login_url="accounts:login")
 def employee_home(request):
     employee = get_employee_for_user(request.user)
+    mark_overdue_rentals(vendor=employee.vendor)
 
     active_statuses = [
         RentalItem.Status.CONFIRMED,
@@ -1070,6 +1072,7 @@ def employee_image_edit(request, product_id, image_id):
 @login_required(login_url="accounts:login")
 def employee_rental_order_list(request):
     employee = get_employee_for_user(request.user)
+    mark_overdue_rentals(vendor=employee.vendor)
     filter_form = RentalOrderFilterForm(request.GET)
 
     orders = (
