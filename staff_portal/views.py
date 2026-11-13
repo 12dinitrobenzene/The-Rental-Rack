@@ -2,13 +2,10 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, F, Prefetch, Q, Sum
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views import View
 from django.views.decorators.http import require_GET, require_POST
-from django.views.generic import ListView
 
 from accounts.permissions import require_platform_admin
 from shop.models import (
@@ -21,20 +18,11 @@ from shop.models import (
 from shop.visibility import visible_products
 
 from .forms import (
-    PlatformListingFilterForm,
+    ListingModerationFilterForm,
+    ListingModerationForm,
     PlatformRentalFilterForm,
-    ProductModerationForm,
     SettlementFilterForm,
 )
-
-
-class PlatformAdminRequiredMixin(LoginRequiredMixin):
-    login_url = "accounts:login"
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            require_platform_admin(request.user)
-        return super().dispatch(request, *args, **kwargs)
 
 
 def platform_financial_totals():
@@ -90,82 +78,6 @@ def platform_admin_home(request):
             **financial_totals,
         },
     )
-
-
-class PlatformListingListView(PlatformAdminRequiredMixin, ListView):
-    template_name = "staff_portal/listings.html"
-    context_object_name = "products"
-    paginate_by = 20
-
-    def get_queryset(self):
-        products = Product.objects.select_related(
-            "vendor",
-            "category",
-        ).order_by("-created_at", "-pk")
-        self.filter_form = PlatformListingFilterForm(self.request.GET)
-
-        if not self.filter_form.is_valid():
-            return products.none()
-
-        search = self.filter_form.cleaned_data["search"]
-        vendor = self.filter_form.cleaned_data["vendor"]
-        moderation_status = self.filter_form.cleaned_data[
-            "moderation_status"
-        ]
-
-        if search:
-            products = products.filter(
-                Q(name__icontains=search)
-                | Q(vendor__name__icontains=search)
-            )
-
-        if vendor:
-            products = products.filter(vendor=vendor)
-
-        if moderation_status == "blocked":
-            products = products.filter(moderation_blocked=True)
-        elif moderation_status == "allowed":
-            products = products.filter(moderation_blocked=False)
-
-        return products
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["filter_form"] = self.filter_form
-        return context
-
-
-class PlatformListingModerationView(
-    PlatformAdminRequiredMixin,
-    View,
-):
-    def post(self, request, product_id):
-        product = get_object_or_404(Product, pk=product_id)
-        form = ProductModerationForm(request.POST)
-
-        if not form.is_valid():
-            messages.error(
-                request,
-                next(iter(form.errors.values()))[0],
-            )
-            return redirect("staff_portal:listing_list")
-
-        action = form.cleaned_data["action"]
-        product.moderation_blocked = action == "block"
-        product.moderation_reason = form.cleaned_data["reason"]
-        product.save(
-            update_fields=["moderation_blocked", "moderation_reason"],
-        )
-
-        messages.success(
-            request,
-            (
-                f"{product.name} has been blocked."
-                if product.moderation_blocked
-                else f"{product.name} has been unblocked."
-            ),
-        )
-        return redirect("staff_portal:listing_list")
 
 
 @login_required(login_url="accounts:login")
@@ -381,3 +293,71 @@ def platform_vendor_action(request, vendor_id):
         return HttpResponseBadRequest("Unknown vendor action.")
 
     return redirect("staff_portal:vendor_list")
+
+
+@login_required(login_url="accounts:login")
+@require_GET
+def platform_listing_list(request):
+    require_platform_admin(request.user)
+    filter_form = ListingModerationFilterForm(request.GET)
+
+    products = (
+        Product.objects.select_related("vendor", "category")
+        .order_by("-moderation_blocked", "vendor__name", "name", "pk")
+    )
+
+    if filter_form.is_valid():
+        query = filter_form.cleaned_data["q"]
+        vendor = filter_form.cleaned_data["vendor"]
+        status = filter_form.cleaned_data["status"]
+
+        if query:
+            products = products.filter(
+                Q(name__icontains=query) | Q(brand__icontains=query)
+            )
+        if vendor:
+            products = products.filter(vendor=vendor)
+        if status == "blocked":
+            products = products.filter(moderation_blocked=True)
+        elif status == "allowed":
+            products = products.filter(moderation_blocked=False)
+    else:
+        products = products.none()
+
+    return render(
+        request,
+        "staff_portal/listings.html",
+        {"filter_form": filter_form, "products": products},
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def platform_listing_moderate(request, product_id):
+    require_platform_admin(request.user)
+    product = get_object_or_404(Product, pk=product_id)
+    form = ListingModerationForm(request.POST)
+
+    if not form.is_valid():
+        first_error = next(
+            error
+            for errors in form.errors.values()
+            for error in errors
+        )
+        messages.error(request, first_error)
+        return redirect("staff_portal:listing_list")
+
+    if form.cleaned_data["action"] == "block":
+        product.moderation_blocked = True
+        product.moderation_reason = form.cleaned_data["reason"]
+        message = f"{product.name} has been blocked."
+    else:
+        product.moderation_blocked = False
+        product.moderation_reason = ""
+        message = f"{product.name} has been unblocked."
+
+    product.save(
+        update_fields=["moderation_blocked", "moderation_reason", "updated_at"]
+    )
+    messages.success(request, message)
+    return redirect("staff_portal:listing_list")

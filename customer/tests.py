@@ -1597,6 +1597,55 @@ class SessionRentalCartTests(TestCase):
         self.assertEqual(RentalItem.objects.count(), item_count)
         self.assertEqual(self.client.session["rental_cart"], original_cart)
 
+    def test_checkout_rejects_listings_that_became_unavailable(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(self.product, start=start, end=start)
+        original_cart = self.client.session["rental_cart"]
+        checkout_data = {
+            "delivery_address": "10 Checkout Street",
+            "confirm_payment": "on",
+        }
+
+        scenarios = (
+            ("moderated", {"moderation_blocked": True}),
+            ("archived", {"is_archived": True}),
+            ("unpublished", {"is_published": False}),
+            ("suspended vendor", {"vendor__is_suspended": True}),
+        )
+
+        for scenario, changes in scenarios:
+            with self.subTest(scenario=scenario):
+                self.product.moderation_blocked = False
+                self.product.is_archived = False
+                self.product.is_published = True
+                self.product.save(
+                    update_fields=[
+                        "moderation_blocked",
+                        "is_archived",
+                        "is_published",
+                    ]
+                )
+                self.vendor.is_suspended = False
+                self.vendor.save(update_fields=["is_suspended"])
+
+                if "vendor__is_suspended" in changes:
+                    self.vendor.is_suspended = changes["vendor__is_suspended"]
+                    self.vendor.save(update_fields=["is_suspended"])
+                else:
+                    for field, value in changes.items():
+                        setattr(self.product, field, value)
+                    self.product.save(update_fields=list(changes))
+
+                response = self.client.post(
+                    reverse("customer:checkout"),
+                    checkout_data,
+                )
+
+                self.assertRedirects(response, reverse("customer:cart"))
+                self.assertEqual(RentalOrder.objects.count(), 0)
+                self.assertEqual(RentalItem.objects.count(), 0)
+                self.assertEqual(self.client.session["rental_cart"], original_cart)
+
     def test_empty_cart_cannot_be_checked_out(self):
         response = self.client.get(reverse("customer:checkout"))
 

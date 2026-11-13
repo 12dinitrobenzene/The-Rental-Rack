@@ -8,16 +8,6 @@ app_name = "staff_portal"
 urlpatterns = [
     path("", views.platform_admin_home, name="home"),
     path(
-        "listings/",
-        views.PlatformListingListView.as_view(),
-        name="listing_list",
-    ),
-    path(
-        "listings/<int:product_id>/moderate/",
-        views.PlatformListingModerationView.as_view(),
-        name="listing_moderate",
-    ),
-    path(
         "performance/",
         views.platform_performance,
         name="performance",
@@ -32,6 +22,12 @@ urlpatterns = [
         "settlements/",
         views.platform_settlement_list,
         name="settlement_list",
+    ),
+    path("listings/", views.platform_listing_list, name="listing_list"),
+    path(
+        "listings/<int:product_id>/moderate/",
+        views.platform_listing_moderate,
+        name="listing_moderate",
     ),
     path(
         "vendors/<int:vendor_id>/action/",
