@@ -105,7 +105,7 @@
                             {{ settlement.rental_item.order.customer.username }}
                         </td>
                         <td>
-                            SGD {{ settlement.platform_amount|add:settlement.vendor_amount|floatformat:2 }}
+                            SGD {{ settlement.gross_amount|floatformat:2 }}
                         </td>
                         <td>{{ settlement.platform_percentage|floatformat:2 }}%</td>
                         <td>SGD {{ settlement.platform_amount|floatformat:2 }}</td>

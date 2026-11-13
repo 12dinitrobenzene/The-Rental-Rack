@@ -742,6 +742,24 @@ class PlatformSettlementOverviewTests(TestCase):
     def setUp(self):
         self.url = reverse("staff_portal:settlement_list")
 
+    def test_row_gross_amount_keeps_cents(self):
+        self._create_settlement(
+            self.vendor_one,
+            Category.objects.create(name="Cents Clothing"),
+            "Cents Scarf",
+            "cents-scarf",
+            Decimal("12.50"),
+            Decimal("0.2000"),
+            Decimal("2.50"),
+            Decimal("10.00"),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "SGD 12.50")
+        self.assertNotContains(response, "SGD 12.00")
+
     def test_page_is_admin_only_read_only_and_uses_saved_amounts(self):
         self.assertEqual(self.client.get(self.url).status_code, 302)
 
