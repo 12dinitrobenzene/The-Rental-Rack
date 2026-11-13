@@ -990,6 +990,30 @@ class PlatformListingModerationTests(TestCase):
         dashboard_response = self.client.get(reverse("staff_portal:home"))
         self.assertContains(dashboard_response, "Manage clothing listings")
 
+    def test_blocked_listing_stays_reachable_after_vendor_unpublishes_it(self):
+        self.client.post(
+            self.action_url,
+            {"action": "block", "reason": "Counterfeit branding"},
+        )
+        Product.objects.filter(pk=self.product.pk).update(is_published=False)
+
+        list_response = self.client.get(self.list_url)
+        review_response = self.client.get(self.action_url)
+
+        self.assertIn(self.product, list(list_response.context["products"]))
+        self.assertContains(list_response, "Draft (unpublished)")
+        self.assertEqual(review_response.status_code, 200)
+
+        unblock_response = self.client.post(self.action_url, {"action": "unblock"})
+
+        self.assertRedirects(unblock_response, self.list_url)
+        self.product.refresh_from_db()
+        self.assertFalse(self.product.moderation_blocked)
+        self.assertFalse(self.product.is_published)
+
+        after_unblock = self.client.get(self.list_url)
+        self.assertNotIn(self.product, list(after_unblock.context["products"]))
+
     def test_listing_filters_search_by_name_or_brand_and_moderation(self):
         blocked_product = Product.objects.create(
             vendor=self.vendor,
