@@ -340,6 +340,15 @@ def platform_vendor_action(request, vendor_id):
     return redirect("staff_portal:vendor_list")
 
 
+# Drafts stay with the vendor until they are published, but a listing the
+# platform has blocked must stay reachable so it can always be unblocked.
+MODERATABLE_LISTINGS = (
+    Q(is_published=True)
+    | Q(is_archived=True)
+    | Q(moderation_blocked=True)
+)
+
+
 @login_required(login_url="accounts:login")
 @require_GET
 def platform_listing_list(request):
@@ -347,13 +356,10 @@ def platform_listing_list(request):
     filter_form = ListingModerationFilterForm(request.GET)
 
     products = (
-        Product.objects.filter(
-            Q(is_published=True) | Q(is_archived=True),
-        )
+        Product.objects.filter(MODERATABLE_LISTINGS)
         .select_related("vendor", "category")
         .order_by("-moderation_blocked", "vendor__name", "name", "pk")
     )
-
     if filter_form.is_valid():
         query = filter_form.cleaned_data["q"]
         vendor = filter_form.cleaned_data["vendor"]
@@ -384,7 +390,7 @@ def platform_listing_moderate(request, product_id):
     require_platform_admin(request.user)
     product = get_object_or_404(
         Product.objects.select_related("vendor", "category").filter(
-            Q(is_published=True) | Q(is_archived=True),
+            MODERATABLE_LISTINGS,
         ),
         pk=product_id,
     )

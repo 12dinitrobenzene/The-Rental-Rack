@@ -29,7 +29,7 @@
 
                     <dt class="col-sm-4">Listing status</dt>
                     <dd class="col-sm-8">
-                        {% if product.is_archived %}Archived{% else %}Published{% endif %}
+                        {% if product.is_archived %}Archived{% elif product.is_published %}Published{% else %}Draft (unpublished){% endif %}
                     </dd>
 
                     <dt class="col-sm-4">Moderation status</dt>
