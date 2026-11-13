@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import VendorEmployee
+from accounts.models import CustomerProfile, VendorEmployee
 from accounts.roles import VENDOR_EMPLOYEE_GROUP
 from shop.models import (
     Category,
@@ -1684,6 +1684,29 @@ class RentalSettlementWorkflowTests(TestCase):
                     self.order_detail_url(foreign_order_id)
                 )
                 self.assertEqual(response.status_code, 404)
+
+    def test_order_detail_shows_customer_contact_details(self):
+        self.customer.first_name = "Tan"
+        self.customer.last_name = "Mei Ling"
+        self.customer.email = "meiling@example.com"
+        self.customer.save(update_fields=["first_name", "last_name", "email"])
+        self.client.force_login(self.employee_user)
+
+        response = self.client.get(self.order_detail_url(self.order.pk))
+
+        self.assertContains(response, "Tan Mei Ling")
+        self.assertContains(response, "mailto:meiling@example.com")
+        self.assertContains(response, "Not provided")
+
+        CustomerProfile.objects.create(
+            user=self.customer,
+            phone_number="+65 9123 4567",
+        )
+
+        response = self.client.get(self.order_detail_url(self.order.pk))
+
+        self.assertContains(response, "+65 9123 4567")
+        self.assertNotContains(response, "Not provided")
 
     def test_customer_cannot_access_order_pages(self):
         customer_group, _ = Group.objects.get_or_create(name="Customer")

@@ -1126,10 +1126,11 @@ def employee_rental_order_detail(request, order_id):
     order = get_object_or_404(
         RentalOrder.objects
         .filter(vendor=employee.vendor)
-        .select_related("customer")
+        .select_related("customer", "customer__customer_profile")
         .prefetch_related("items__variant"),
         pk=order_id,
     )
+    customer_profile = getattr(order.customer, "customer_profile", None)
 
     return render(
         request,
@@ -1137,5 +1138,6 @@ def employee_rental_order_detail(request, order_id):
         {
             "vendor": employee.vendor,
             "order": order,
+            "customer_phone": getattr(customer_profile, "phone_number", ""),
         },
     )
