@@ -1239,6 +1239,47 @@ class SessionRentalCartTests(TestCase):
             (second_start + timedelta(days=2)).isoformat(),
         )
 
+    def test_cart_warns_when_a_rental_start_date_has_passed(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(self.product, start=start, end=start)
+        cart = self.client.session["rental_cart"]
+        cart[0]["start_date"] = (start - timedelta(days=2)).isoformat()
+        cart[0]["end_date"] = (start - timedelta(days=2)).isoformat()
+        session = self.client.session
+        session["rental_cart"] = cart
+        session.save()
+
+        response = self.client.get(reverse("customer:cart"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "start date has passed.")
+        self.assertTrue(response.context["cart_lines"][0]["starts_in_past"])
+
+    def test_checkout_rejects_rentals_that_started_in_the_past(self):
+        start = timezone.localdate() + timedelta(days=1)
+        self.add_product(self.product, start=start, end=start)
+        cart = self.client.session["rental_cart"]
+        past_date = timezone.localdate() - timedelta(days=1)
+        cart[0]["start_date"] = past_date.isoformat()
+        cart[0]["end_date"] = past_date.isoformat()
+        session = self.client.session
+        session["rental_cart"] = cart
+        session.save()
+        checkout_cart = list(self.client.session["rental_cart"])
+
+        response = self.client.post(
+            reverse("customer:checkout"),
+            {
+                "delivery_address": "10 Checkout Street",
+                "confirm_payment": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("customer:cart"))
+        self.assertEqual(RentalOrder.objects.count(), 0)
+        self.assertEqual(RentalItem.objects.count(), 0)
+        self.assertEqual(self.client.session["rental_cart"], checkout_cart)
+
     def test_product_from_another_vendor_is_rejected(self):
         start = timezone.localdate() + timedelta(days=1)
         self.add_product(self.product, start=start, end=start)

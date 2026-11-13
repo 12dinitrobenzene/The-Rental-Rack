@@ -592,6 +592,7 @@ def _build_cart_summary(cart):
             "quantity": line["quantity"],
             "daily_rate": variant.product.daily_rate,
             "line_total": line_total,
+            "starts_in_past": start_date < timezone.localdate(),
         })
 
     return cart_lines, cart_total
@@ -774,6 +775,14 @@ class CheckoutView(LoginRequiredMixin, View):
                     request,
                     "A product in your cart is no longer available. "
                     "Remove it before checking out.",
+                )
+                return redirect("customer:cart")
+
+            if any(line["starts_in_past"] for line in cart_lines):
+                messages.error(
+                    request,
+                    "A rental in your cart starts on a date that has passed. "
+                    "Update its dates before checking out.",
                 )
                 return redirect("customer:cart")
 

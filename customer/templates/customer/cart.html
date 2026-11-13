@@ -21,6 +21,12 @@
             {% for line in cart_lines %}
                 <article class="card mb-3">
                     <div class="card-body">
+                        {% if line.starts_in_past %}
+                            <p class="alert alert-warning py-2 mb-3" role="alert">
+                                This rental's start date has passed.
+                                Choose new dates below before checking out.
+                            </p>
+                        {% endif %}
                         <div class="d-flex justify-content-between gap-3">
                             <div>
                                 <h2 class="h5 mb-1">
