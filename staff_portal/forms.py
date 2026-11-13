@@ -3,6 +3,62 @@ from django import forms
 from shop.models import RentalItem, Vendor
 
 
+class PlatformListingFilterForm(forms.Form):
+    search = forms.CharField(
+        required=False,
+        label="Product or vendor",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Search product or vendor",
+            }
+        ),
+    )
+    vendor = forms.ModelChoiceField(
+        queryset=Vendor.objects.order_by("name", "pk"),
+        required=False,
+        empty_label="All vendors",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    moderation_status = forms.ChoiceField(
+        required=False,
+        label="Moderation status",
+        choices=[
+            ("", "All listings"),
+            ("allowed", "Allowed"),
+            ("blocked", "Blocked"),
+        ],
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+
+class ProductModerationForm(forms.Form):
+    action = forms.ChoiceField(
+        choices=[("block", "Block"), ("unblock", "Unblock")],
+    )
+    reason = forms.CharField(
+        required=False,
+        max_length=500,
+        strip=True,
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        action = cleaned_data.get("action")
+        reason = cleaned_data.get("reason", "")
+
+        if action == "block" and not reason:
+            self.add_error(
+                "reason",
+                "Provide a reason before blocking this listing.",
+            )
+
+        if action == "unblock":
+            cleaned_data["reason"] = ""
+
+        return cleaned_data
+
+
 class PlatformRentalFilterForm(forms.Form):
     vendor = forms.ModelChoiceField(
         queryset=Vendor.objects.order_by("name", "pk"),

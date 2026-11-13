@@ -1,0 +1,118 @@
+{% extends "layouts/staff.html" %}
+
+{% block title %}Marketplace performance | The Rental Rack{% endblock %}
+
+{% block content %}
+<a class="link-secondary" href="{% url 'staff_portal:home' %}">
+    Back to Platform Admin Homepage
+</a>
+
+<header class="my-4">
+    <h1 class="mb-2">Marketplace performance</h1>
+    <p class="text-muted mb-0">
+        Review settled marketplace results and compare vendor performance.
+    </p>
+</header>
+
+<section class="mb-5" aria-labelledby="financial-summary-heading">
+    <h2 class="h3 mb-3" id="financial-summary-heading">Financial summary</h2>
+    <div class="row g-3">
+        {% include "components/metric_card.html" with label="Settled value" value=settled_gross|floatformat:2 prefix="SGD" tone="financial" icon="bi-cash-stack" %}
+        {% include "components/metric_card.html" with label="Platform commission" value=platform_commission|floatformat:2 prefix="SGD" tone="financial" icon="bi-graph-up-arrow" %}
+        {% include "components/metric_card.html" with label="Vendor payouts" value=vendor_payout|floatformat:2 prefix="SGD" tone="financial" icon="bi-wallet2" %}
+    </div>
+</section>
+
+<section class="mb-5" aria-labelledby="vendor-performance-heading">
+    <h2 class="h3 mb-3" id="vendor-performance-heading">Vendor performance</h2>
+    <div class="table-responsive admin-table-wrapper">
+        <table class="table table-hover align-middle admin-table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Vendor</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-end">Completed payments</th>
+                    <th scope="col" class="text-end">Settled value</th>
+                    <th scope="col" class="text-end">Platform commission</th>
+                    <th scope="col" class="text-end">Vendor payout</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vendor in vendor_performance %}
+                    <tr>
+                        <td class="fw-semibold">{{ vendor.name }}</td>
+                        <td>
+                            {% if vendor.is_suspended %}
+                                <span class="badge text-bg-danger">Suspended</span>
+                            {% elif vendor.approval_status == "Approved" %}
+                                <span class="badge text-bg-success">Approved</span>
+                            {% elif vendor.approval_status == "Rejected" %}
+                                <span class="badge text-bg-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">
+                                    {{ vendor.get_approval_status_display }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-semibold">{{ vendor.settled_items }}</td>
+                        <td class="text-end text-nowrap">SGD {{ vendor.settled_gross|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap">SGD {{ vendor.platform_commission|floatformat:2 }}</td>
+                        <td class="text-end text-nowrap">SGD {{ vendor.vendor_payout|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            No vendor performance data is available yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section aria-labelledby="recent-rentals-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+        <div>
+            <h2 class="h3 mb-1" id="recent-rentals-heading">Recent rental activity</h2>
+            <p class="text-muted mb-0">The five most recently placed orders.</p>
+        </div>
+        <a class="btn btn-outline-dark" href="{% url 'staff_portal:rental_order_list' %}">
+            View all rental orders
+        </a>
+    </div>
+
+    <div class="table-responsive admin-table-wrapper">
+        <table class="table table-hover align-middle admin-table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Order</th>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Vendor</th>
+                    <th scope="col">Payment</th>
+                    <th scope="col">Items</th>
+                    <th scope="col">Placed on</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders %}
+                    <tr>
+                        <td>#{{ order.pk }}</td>
+                        <td>{{ order.customer.username }}</td>
+                        <td>{{ order.vendor.name }}</td>
+                        <td>{{ order.get_payment_status_display }}</td>
+                        <td>{{ order.item_count }}</td>
+                        <td>{{ order.created_at|date:"d M Y, H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No rental activity has been recorded yet.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

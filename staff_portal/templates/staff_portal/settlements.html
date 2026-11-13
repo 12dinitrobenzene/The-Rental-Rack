@@ -1,21 +1,20 @@
 {% extends "layouts/staff.html" %}
 
-{% block title %}Settlement overview | The Rental Rack{% endblock %}
+{% block title %}Payments and payouts | The Rental Rack{% endblock %}
 
 {% block content %}
 <a class="link-secondary" href="{% url 'staff_portal:home' %}">
-    Back to platform workspace
+    Back to Platform Admin Homepage
 </a>
 
 <header class="my-4">
     <p class="text-muted small text-uppercase mb-1">
-        Marketplace finances
+        Marketplace payments
     </p>
-    <h1 class="mb-1">Commission and settlements</h1>
+    <h1 class="mb-1">Payments &amp; payouts</h1>
     <p class="text-muted mb-0">
-        Review the commission and vendor payout recorded when completed
-        rentals were settled. Amounts are historical snapshots and cannot
-        be changed here.
+        Review completed rental payments, platform commission and vendor
+        payouts. Recorded amounts cannot be changed here.
     </p>
 </header>
 
@@ -52,10 +51,10 @@
         Filtered summary
     </h2>
     <div class="row g-3">
-        {% include "components/metric_card.html" with label="Settled rental items" value=settlement_count description="One settlement per completed rental item" %}
-        {% include "components/metric_card.html" with label="Gross settled amount" value=gross_amount|floatformat:2 prefix="SGD" description="Platform commission plus vendor payout" %}
-        {% include "components/metric_card.html" with label="Platform commission" value=platform_amount|floatformat:2 prefix="SGD" description="Commission captured in settlement snapshots" %}
-        {% include "components/metric_card.html" with label="Vendor payouts" value=vendor_amount|floatformat:2 prefix="SGD" description="Amounts allocated to vendors" %}
+        {% include "components/metric_card.html" with label="Completed payments" value=settlement_count description="One payment record per completed rental item" %}
+        {% include "components/metric_card.html" with label="Total distributed" value=gross_amount|floatformat:2 prefix="SGD" description="Platform commission plus vendor payout" %}
+        {% include "components/metric_card.html" with label="Platform commission" value=platform_amount|floatformat:2 prefix="SGD" description="Amount allocated to the platform" %}
+        {% include "components/metric_card.html" with label="Vendor payouts" value=vendor_amount|floatformat:2 prefix="SGD" description="Amount allocated to vendors" %}
     </div>
 </section>
 
@@ -63,10 +62,10 @@
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
         <div>
             <h2 class="h3 mb-1" id="settlement-records-heading">
-                Settlement records
+                Payment &amp; payout records
             </h2>
             <p class="text-muted mb-0">
-                Most recently settled items appear first.
+                Most recently completed payments appear first.
             </p>
         </div>
         <span class="badge text-bg-light border">
@@ -121,17 +120,16 @@
                                     Correct the filters above
                                 </p>
                                 <p class="text-muted mb-0">
-                                    Settlement records will appear after the
+                                    Payment records will appear after the
                                     date range is valid.
                                 </p>
                             {% else %}
                                 <p class="fw-semibold mb-1">
-                                    No settlements found
+                                    No payments found
                                 </p>
                                 <p class="text-muted mb-0">
                                     Try changing the filters, or check again
-                                    after completed rentals are inspected and
-                                    settled.
+                                    after completed rentals are inspected.
                                 </p>
                             {% endif %}
                         </td>
