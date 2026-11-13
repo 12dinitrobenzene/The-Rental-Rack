@@ -1297,6 +1297,54 @@ class VendorAnalyticsTests(TestCase):
             [("L", 5), ("M", 2)],
         )
 
+    def test_date_filter_uses_settlement_date_for_quantities_and_money(self):
+        product = self.create_product(self.vendor, "Late settled product")
+        variant = self.create_variant(product, "late-settled-variant")
+        item = self.create_completed_item(self.vendor, variant, quantity=2)
+        RentalOrder.objects.filter(pk=item.order_id).update(
+            created_at=timezone.now() - timedelta(days=45),
+        )
+        RentalSettlement.objects.create(
+            rental_item=item,
+            commission_rate_snapshot=Decimal("0.2000"),
+            platform_amount=Decimal("2.00"),
+            vendor_amount=Decimal("8.00"),
+        )
+        today = timezone.localdate()
+
+        recent = self.client.get(
+            reverse("vendor_portal:analytics"),
+            {
+                "start_date": (today - timedelta(days=7)).isoformat(),
+                "end_date": today.isoformat(),
+            },
+        )
+        when_ordered = self.client.get(
+            reverse("vendor_portal:analytics"),
+            {
+                "start_date": (today - timedelta(days=50)).isoformat(),
+                "end_date": (today - timedelta(days=40)).isoformat(),
+            },
+        )
+
+        self.assertEqual(recent.context["completed_rental_quantity"], 2)
+        self.assertEqual(
+            recent.context["settled_gross_value"],
+            Decimal("10.00"),
+        )
+        self.assertEqual(
+            list(recent.context["popular_products"].values_list(
+                "product_name",
+                "rental_quantity",
+            )),
+            [("Late settled product", 2)],
+        )
+        self.assertEqual(when_ordered.context["completed_rental_quantity"], 0)
+        self.assertEqual(
+            when_ordered.context["settled_gross_value"],
+            Decimal("0.00"),
+        )
+
     def test_end_date_before_start_date_displays_validation_error(self):
         response = self.client.get(
             reverse("vendor_portal:analytics"),

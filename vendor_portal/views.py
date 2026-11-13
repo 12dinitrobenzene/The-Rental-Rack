@@ -382,13 +382,15 @@ def employee_analytics(request):
         start_date = form.cleaned_data.get("start_date")
         end_date = form.cleaned_data.get("end_date")
 
+        # Use the settlement date for both halves of the page, so the
+        # rental counts and the money always cover the same rentals.
         if start_date:
             completed_items = completed_items.filter(
-                order__created_at__date__gte=start_date
+                settlement__created_at__date__gte=start_date
             )
         if end_date:
             completed_items = completed_items.filter(
-                order__created_at__date__lte=end_date
+                settlement__created_at__date__lte=end_date
             )
 
         if start_date:
