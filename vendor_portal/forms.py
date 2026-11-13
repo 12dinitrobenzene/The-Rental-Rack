@@ -152,6 +152,41 @@ class ProductVariantForm(forms.ModelForm):
             ),
         }
 
+    def __init__(self, *args, product, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.product = product
+        self.instance.product = product
+
+    def clean_size(self):
+        return " ".join(self.cleaned_data["size"].split())
+
+    def clean_colour(self):
+        return " ".join(self.cleaned_data["colour"].split())
+
+    def clean(self):
+        cleaned_data = super().clean()
+        size = cleaned_data.get("size")
+        colour = cleaned_data.get("colour")
+
+        if size and colour:
+            duplicate = (
+                ProductVariant.objects.filter(
+                    product=self.product,
+                    size__iexact=size,
+                    colour__iexact=colour,
+                )
+                .exclude(pk=self.instance.pk)
+                .exists()
+            )
+
+            if duplicate:
+                raise forms.ValidationError(
+                    "This product already has a variant in this size "
+                    "and colour."
+                )
+
+        return cleaned_data
+
     def save(self, commit=True):
         if not self.instance.sku:
             self.instance.sku = generate_variant_sku()

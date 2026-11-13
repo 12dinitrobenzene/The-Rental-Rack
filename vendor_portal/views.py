@@ -980,12 +980,10 @@ def employee_product_archive(request, product_id):
 def employee_variant_create(request, product_id):
     employee = get_employee_for_user(request.user)
     product = employee_product_or_404(employee, product_id)
-    form = ProductVariantForm(request.POST or None)
+    form = ProductVariantForm(request.POST or None, product=product)
 
     if request.method == "POST" and form.is_valid():
-        variant = form.save(commit=False)
-        variant.product = product
-        variant.save()
+        form.save()
         messages.success(request, "Variant added.")
         return redirect("vendor_portal:product_detail", product_id=product.pk)
 
@@ -1001,7 +999,11 @@ def employee_variant_edit(request, product_id, variant_id):
     employee = get_employee_for_user(request.user)
     product = employee_product_or_404(employee, product_id)
     variant = product_variant_or_404(product, variant_id)
-    form = ProductVariantForm(request.POST or None, instance=variant)
+    form = ProductVariantForm(
+        request.POST or None,
+        instance=variant,
+        product=product,
+    )
 
     if request.method == "POST" and form.is_valid():
         form.save()
