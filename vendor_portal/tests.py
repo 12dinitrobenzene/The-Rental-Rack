@@ -870,6 +870,67 @@ class EmployeeHomeTests(TestCase):
         self.assertEqual(variant.sku, original_sku)
         self.assertEqual(other_response.status_code, 404)
 
+    def test_duplicate_variant_size_and_colour_is_rejected(self):
+        product = self.create_product(self.vendor, "Duplicate variant product")
+        ProductVariant.objects.create(
+            product=product,
+            sku="dup-variant-m-black",
+            size="M",
+            colour="Black",
+            total_quantity=1,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vendor_portal:variant_create", args=[product.pk]),
+            {
+                "size": "m",
+                "colour": " black ",
+                "colour_hex": "#000000",
+                "total_quantity": 2,
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "This product already has a variant in this size and colour.",
+        )
+        self.assertEqual(product.variants.count(), 1)
+
+    def test_editing_a_variant_can_keep_its_own_size_and_colour(self):
+        product = self.create_product(self.vendor, "Edit variant product")
+        variant = ProductVariant.objects.create(
+            product=product,
+            sku="edit-variant-m-black",
+            size="M",
+            colour="Black",
+            total_quantity=1,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse(
+                "vendor_portal:variant_edit",
+                args=[product.pk, variant.pk],
+            ),
+            {
+                "size": "M",
+                "colour": "Black",
+                "colour_hex": "#111111",
+                "total_quantity": 4,
+                "is_active": "on",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("vendor_portal:product_detail", args=[product.pk]),
+        )
+        variant.refresh_from_db()
+        self.assertEqual(variant.total_quantity, 4)
+
     def test_employee_can_create_and_edit_only_their_own_product_image(self):
         product = self.create_product(self.vendor, "Image product")
         other_product = self.create_product(self.other_vendor, "Other product")
