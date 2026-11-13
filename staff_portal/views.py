@@ -9,6 +9,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from accounts.permissions import require_platform_admin
 from shop.models import (
+    Product,
     RentalItem,
     RentalOrder,
     RentalSettlement,
@@ -16,7 +17,12 @@ from shop.models import (
 )
 from shop.visibility import visible_products
 
-from .forms import PlatformRentalFilterForm, SettlementFilterForm
+from .forms import (
+    ListingModerationFilterForm,
+    ListingModerationForm,
+    PlatformRentalFilterForm,
+    SettlementFilterForm,
+)
 
 
 @login_required(login_url="accounts:login")
@@ -246,3 +252,71 @@ def platform_vendor_action(request, vendor_id):
         return HttpResponseBadRequest("Unknown vendor action.")
 
     return redirect("staff_portal:vendor_list")
+
+
+@login_required(login_url="accounts:login")
+@require_GET
+def platform_listing_list(request):
+    require_platform_admin(request.user)
+    filter_form = ListingModerationFilterForm(request.GET)
+
+    products = (
+        Product.objects.select_related("vendor", "category")
+        .order_by("-moderation_blocked", "vendor__name", "name", "pk")
+    )
+
+    if filter_form.is_valid():
+        query = filter_form.cleaned_data["q"]
+        vendor = filter_form.cleaned_data["vendor"]
+        status = filter_form.cleaned_data["status"]
+
+        if query:
+            products = products.filter(
+                Q(name__icontains=query) | Q(brand__icontains=query)
+            )
+        if vendor:
+            products = products.filter(vendor=vendor)
+        if status == "blocked":
+            products = products.filter(moderation_blocked=True)
+        elif status == "allowed":
+            products = products.filter(moderation_blocked=False)
+    else:
+        products = products.none()
+
+    return render(
+        request,
+        "staff_portal/listings.html",
+        {"filter_form": filter_form, "products": products},
+    )
+
+
+@login_required(login_url="accounts:login")
+@require_POST
+def platform_listing_moderate(request, product_id):
+    require_platform_admin(request.user)
+    product = get_object_or_404(Product, pk=product_id)
+    form = ListingModerationForm(request.POST)
+
+    if not form.is_valid():
+        first_error = next(
+            error
+            for errors in form.errors.values()
+            for error in errors
+        )
+        messages.error(request, first_error)
+        return redirect("staff_portal:listing_list")
+
+    if form.cleaned_data["action"] == "block":
+        product.moderation_blocked = True
+        product.moderation_reason = form.cleaned_data["reason"]
+        message = f"{product.name} has been blocked."
+    else:
+        product.moderation_blocked = False
+        product.moderation_reason = ""
+        message = f"{product.name} has been unblocked."
+
+    product.save(
+        update_fields=["moderation_blocked", "moderation_reason", "updated_at"]
+    )
+    messages.success(request, message)
+    return redirect("staff_portal:listing_list")

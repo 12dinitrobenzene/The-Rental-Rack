@@ -848,3 +848,125 @@ class PlatformVendorManagementTests(TestCase):
 
         self.assertEqual(get_response.status_code, 405)
         self.assertEqual(post_response.status_code, 400)
+
+
+class PlatformListingModerationTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(
+            username="listing-moderation-admin",
+        )
+        admin_group = Group.objects.get_or_create(
+            name=PLATFORM_ADMIN_GROUP
+        )[0]
+        self.admin.groups.add(admin_group)
+        self.client.force_login(self.admin)
+
+        self.vendor = Vendor.objects.create(
+            name="Moderation Vendor",
+            contact_email="moderation@example.com",
+        )
+        self.category = Category.objects.create(name="Moderation Clothing")
+        self.product = Product.objects.create(
+            vendor=self.vendor,
+            category=self.category,
+            name="Moderation Jacket",
+            description="A listing moderation test product.",
+            brand="Test Brand",
+            daily_rate=Decimal("10.00"),
+            is_published=True,
+        )
+        self.list_url = reverse("staff_portal:listing_list")
+        self.action_url = reverse(
+            "staff_portal:listing_moderate",
+            args=[self.product.pk],
+        )
+
+    def test_listing_screen_includes_hidden_and_blocked_listings(self):
+        self.product.moderation_blocked = True
+        self.product.moderation_reason = "Existing reason"
+        self.product.save(update_fields=["moderation_blocked", "moderation_reason"])
+
+        response = self.client.get(self.list_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "staff_portal/listings.html")
+        self.assertContains(response, self.product.name)
+        self.assertContains(response, "Existing reason")
+        dashboard_response = self.client.get(reverse("staff_portal:home"))
+        self.assertContains(dashboard_response, "Moderate listings")
+
+    def test_listing_filters_search_by_name_or_brand_and_moderation(self):
+        blocked_product = Product.objects.create(
+            vendor=self.vendor,
+            category=self.category,
+            name="Blocked Coat",
+            description="A blocked listing.",
+            brand="Searchable Brand",
+            daily_rate=Decimal("10.00"),
+            moderation_blocked=True,
+        )
+
+        response = self.client.get(
+            self.list_url,
+            {"q": "searchable", "status": "blocked"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, blocked_product.name)
+        self.assertNotContains(response, self.product.name)
+
+    def test_moderation_only_changes_moderation_fields(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            self.action_url,
+            {"action": "block", "reason": "  Policy   violation  "},
+        )
+
+        self.assertRedirects(response, self.list_url)
+        self.product.refresh_from_db()
+        self.assertTrue(self.product.moderation_blocked)
+        self.assertEqual(self.product.moderation_reason, "Policy violation")
+        self.assertTrue(self.product.is_published)
+
+        response = self.client.post(
+            self.action_url,
+            {"action": "unblock"},
+        )
+
+        self.assertRedirects(response, self.list_url)
+        self.product.refresh_from_db()
+        self.assertFalse(self.product.moderation_blocked)
+        self.assertEqual(self.product.moderation_reason, "")
+        self.assertTrue(self.product.is_published)
+
+    def test_block_requires_a_reason_and_action_rejects_get(self):
+        response = self.client.post(
+            self.action_url,
+            {"action": "block", "reason": "   "},
+        )
+
+        self.assertRedirects(response, self.list_url)
+        self.product.refresh_from_db()
+        self.assertFalse(self.product.moderation_blocked)
+
+        get_response = self.client.get(self.action_url)
+        self.assertEqual(get_response.status_code, 405)
+
+    def test_other_roles_cannot_moderate_listings(self):
+        customer_group = Group.objects.get_or_create(
+            name=CUSTOMER_GROUP
+        )[0]
+        customer = get_user_model().objects.create_user(
+            username="listing-moderation-customer",
+        )
+        customer.groups.add(customer_group)
+        self.client.force_login(customer)
+
+        self.assertEqual(self.client.get(self.list_url).status_code, 403)
+        self.assertEqual(
+            self.client.post(
+                self.action_url,
+                {"action": "block", "reason": "Policy violation"},
+            ).status_code,
+            403,
+        )
