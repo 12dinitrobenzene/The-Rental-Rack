@@ -6,11 +6,14 @@
 <div class="workspace-dashboard">
     <header class="workspace-dashboard__header d-flex flex-wrap justify-content-between align-items-center gap-4 mb-5">
         <div>
-            <h1 class="display-5 fw-semibold mb-2">{{ vendor.name }} workspace</h1>
+            <h1 class="vendor-dashboard-title fw-semibold mb-2">
+                {{ vendor.name }} workspace
+            </h1>
             <p class="text-muted mb-0">Manage your products, rentals and team.</p>
         </div>
 
-        <a class="btn btn-dark px-4" href="{% url 'vendor_portal:product_create' %}">
+        <a class="btn btn-dark vendor-dashboard-add-button"
+           href="{% url 'vendor_portal:product_create' %}">
             <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
             Add product
         </a>
@@ -23,11 +26,14 @@
                     <i class="bi bi-box-seam"></i>
                 </div>
                 <h2 class="h4 mt-4">Inventory</h2>
-                <p class="text-muted mb-4">
-                    {{ active_listings }} active product{{ active_listings|pluralize }} ·
-                    {{ total_physical_stock }} unit{{ total_physical_stock|pluralize }} in stock
+                <p class="vendor-dashboard-card__summary text-muted mb-4">
+                    <strong>{{ active_listings }}</strong>
+                    active product{{ active_listings|pluralize }} &middot;
+                    <strong>{{ total_physical_stock }}</strong>
+                    unit{{ total_physical_stock|pluralize }} in stock
                 </p>
-                <a class="btn btn-outline-dark mt-auto" href="{% url 'vendor_portal:product_list' %}">
+                <a class="btn btn-outline-dark vendor-dashboard-card__action mt-auto"
+                   href="{% url 'vendor_portal:product_list' %}">
                     View inventory
                 </a>
             </article>
@@ -39,22 +45,26 @@
                     <i class="bi bi-bag-check"></i>
                 </div>
                 <h2 class="h4 mt-4">Rental orders</h2>
-                <ul class="list-unstyled text-muted mb-4">
+                <ul class="vendor-dashboard-status-list list-unstyled text-muted mb-4">
                     <li>
-                        {{ awaiting_fulfilment }} item{{ awaiting_fulfilment|pluralize }} awaiting fulfilment
+                        <strong>{{ awaiting_fulfilment }}</strong>
+                        item{{ awaiting_fulfilment|pluralize }} awaiting fulfilment
                     </li>
                     <li class="{% if overdue_rentals %}text-danger fw-semibold{% endif %}">
                         <a class="text-reset" href="{% url 'vendor_portal:rental_order_list' %}?status=Overdue">
-                            {{ overdue_rentals }} overdue item{{ overdue_rentals|pluralize }}
+                            <strong>{{ overdue_rentals }}</strong>
+                            overdue item{{ overdue_rentals|pluralize }}
                         </a>
                     </li>
                     <li>
                         <a class="text-reset" href="{% url 'vendor_portal:rental_order_list' %}?status=Returned">
-                            {{ awaiting_completion }} returned item{{ awaiting_completion|pluralize }} awaiting inspection or completion
+                            <strong>{{ awaiting_completion }}</strong>
+                            returned item{{ awaiting_completion|pluralize }} awaiting inspection or completion
                         </a>
                     </li>
                 </ul>
-                <a class="btn btn-outline-dark mt-auto" href="{% url 'vendor_portal:rental_order_list' %}">
+                <a class="btn btn-outline-dark vendor-dashboard-card__action mt-auto"
+                   href="{% url 'vendor_portal:rental_order_list' %}">
                     View rental orders
                 </a>
             </article>
@@ -66,8 +76,11 @@
                     <i class="bi bi-graph-up-arrow"></i>
                 </div>
                 <h2 class="h4 mt-4">Performance</h2>
-                <p class="text-muted mb-4">Review rental activity, earnings and settlements.</p>
-                <a class="btn btn-outline-dark mt-auto" href="{% url 'vendor_portal:analytics' %}">
+                <p class="vendor-dashboard-card__summary text-muted mb-4">
+                    Review rental activity, earnings and settlements.
+                </p>
+                <a class="btn btn-outline-dark vendor-dashboard-card__action mt-auto"
+                   href="{% url 'vendor_portal:analytics' %}">
                     View performance
                 </a>
             </article>
@@ -80,8 +93,11 @@
                         <i class="bi bi-people"></i>
                     </div>
                     <h2 class="h4 mt-4">Team</h2>
-                    <p class="text-muted mb-4">Add employees and manage access to this workspace.</p>
-                    <a class="btn btn-outline-dark mt-auto" href="{% url 'accounts:vendor_team' %}">
+                    <p class="vendor-dashboard-card__summary text-muted mb-4">
+                        Add employees and manage access to this workspace.
+                    </p>
+                    <a class="btn btn-outline-dark vendor-dashboard-card__action mt-auto"
+                       href="{% url 'accounts:vendor_team' %}">
                         Manage team
                     </a>
                 </article>
